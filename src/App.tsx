@@ -105,6 +105,51 @@ function loadSavedSleepSessions(): SleepSession[] {
     return [];
   }
 }
+function getTodaySleepDuration(sessions: SleepSession[]): number {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  // Start and end of today in Indian Standard Time.
+  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
+  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+  const totalMilliseconds = sessions.reduce((total, session) => {
+    if (!session.endTime) return total;
+
+    const sessionStart = new Date(session.startTime).getTime();
+    const sessionEnd = new Date(session.endTime).getTime();
+
+    if (
+      Number.isNaN(sessionStart) ||
+      Number.isNaN(sessionEnd) ||
+      sessionEnd <= sessionStart
+    ) {
+      return total;
+    }
+
+    const overlapStart = Math.max(sessionStart, todayStart);
+    const overlapEnd = Math.min(sessionEnd, todayEnd);
+
+    return total + Math.max(0, overlapEnd - overlapStart);
+  }, 0);
+
+  return Math.floor(totalMilliseconds / 60000);
+}
+
+function formatSleepDuration(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0 && minutes === 0) return "0m";
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+
+  return `${hours}h ${minutes}m`;
+}
 
 function App() {
   const [noteInput, setNoteInput] = useState("");
@@ -127,6 +172,11 @@ function App() {
 
   const [sleepSessions, setSleepSessions] = useState<SleepSession[]>(
     loadSavedSleepSessions,
+  );
+  const todaySleepMinutes = getTodaySleepDuration(sleepSessions);
+
+  const activeSleepSession = sleepSessions.find(
+    (session) => session.endTime === null,
   );
 
   const handleAddNote = () => {
@@ -362,9 +412,17 @@ function App() {
           <article className="overview-card">
             <span className="card-icon">🌙</span>
             <p>Sleep</p>
-            <h3>Not tracked yet</h3>
-          </article>
 
+            <h3>
+              {todaySleepMinutes > 0
+                ? formatSleepDuration(todaySleepMinutes)
+                : "Not tracked yet"}
+            </h3>
+
+            <span>
+              {activeSleepSession ? "Currently sleeping" : "Total sleep today"}
+            </span>
+          </article>
           <article className="overview-card">
             <span className="card-icon">✓</span>
             <p>Tasks</p>

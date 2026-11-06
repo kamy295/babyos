@@ -43,7 +43,6 @@ function formatDuration(startTime: string, endTime: string): string {
 
   return `${hours}h ${minutes}m`;
 }
-
 function getTodaySleepDuration(sessions: SleepSession[]): number {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -52,24 +51,86 @@ function getTodaySleepDuration(sessions: SleepSession[]): number {
     day: "2-digit",
   }).format(new Date());
 
-  return sessions.reduce((total, session) => {
+  // Start and end of today in Indian Standard Time.
+  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
+  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+  const totalMilliseconds = sessions.reduce((total, session) => {
     if (!session.endTime) return total;
 
-    const sessionDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(session.startTime));
+    const sessionStart = new Date(session.startTime).getTime();
+    const sessionEnd = new Date(session.endTime).getTime();
 
-    if (sessionDate !== today) return total;
+    if (
+      Number.isNaN(sessionStart) ||
+      Number.isNaN(sessionEnd) ||
+      sessionEnd <= sessionStart
+    ) {
+      return total;
+    }
 
-    const duration =
-      new Date(session.endTime).getTime() -
-      new Date(session.startTime).getTime();
+    const overlapStart = Math.max(sessionStart, todayStart);
+    const overlapEnd = Math.min(sessionEnd, todayEnd);
 
-    return total + Math.max(0, Math.floor(duration / 60000));
+    return total + Math.max(0, overlapEnd - overlapStart);
   }, 0);
+
+  return Math.floor(totalMilliseconds / 60000);
+}
+
+function getWeeklySleepSummary(sessions: SleepSession[]) {
+  const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const today = dateFormatter.format(new Date());
+  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
+
+  const dayDuration = 24 * 60 * 60 * 1000;
+
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const dayStart = todayStart - (6 - index) * dayDuration;
+    const dayEnd = dayStart + dayDuration;
+
+    const totalMilliseconds = sessions.reduce((total, session) => {
+      if (!session.endTime) return total;
+
+      const sessionStart = new Date(session.startTime).getTime();
+      const sessionEnd = new Date(session.endTime).getTime();
+
+      if (
+        Number.isNaN(sessionStart) ||
+        Number.isNaN(sessionEnd) ||
+        sessionEnd <= sessionStart
+      ) {
+        return total;
+      }
+
+      const overlapStart = Math.max(sessionStart, dayStart);
+      const overlapEnd = Math.min(sessionEnd, dayEnd);
+
+      return total + Math.max(0, overlapEnd - overlapStart);
+    }, 0);
+
+    return {
+      label: new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
+        weekday: "short",
+      }).format(new Date(dayStart)),
+      totalMinutes: Math.floor(totalMilliseconds / 60000),
+    };
+  });
+
+  const weeklyTotal = days.reduce((total, day) => total + day.totalMinutes, 0);
+
+  return {
+    days,
+    weeklyTotal,
+    dailyAverage: Math.floor(weeklyTotal / 7),
+  };
 }
 
 function formatTotalDuration(totalMinutes: number): string {
@@ -97,6 +158,13 @@ function SleepTracker({
   const todaySleepDuration = getTodaySleepDuration(sleepSessions);
   const activeSession = sleepSessions.find(
     (session) => session.endTime === null,
+  );
+
+  const weeklySummary = getWeeklySleepSummary(sleepSessions);
+
+  const maxDailySleep = Math.max(
+    ...weeklySummary.days.map((day) => day.totalMinutes),
+    1,
   );
 
   const handlePastSleepSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -239,6 +307,45 @@ function SleepTracker({
           <h3>{formatTotalDuration(todaySleepDuration)}</h3>
         </div>
         <span className="sleep-summary-icon">🌙</span>
+      </div>
+
+      <div className="sleep-weekly-summary">
+        <h3>Last 7 Days</h3>
+
+        <div className="sleep-weekly-stats">
+          <div>
+            <p>Total Sleep</p>
+            <strong>{formatTotalDuration(weeklySummary.weeklyTotal)}</strong>
+          </div>
+
+          <div>
+            <p>Daily Average</p>
+            <strong>{formatTotalDuration(weeklySummary.dailyAverage)}</strong>
+          </div>
+        </div>
+
+        <div className="sleep-weekly-chart">
+          {weeklySummary.days.map((day, index) => (
+            <div className="sleep-weekly-day" key={`${day.label}-${index}`}>
+              <span className="sleep-weekly-bar-value">
+                {day.totalMinutes > 0
+                  ? formatTotalDuration(day.totalMinutes)
+                  : ""}
+              </span>
+
+              <div className="sleep-weekly-bar-container">
+                <div
+                  className="sleep-weekly-bar"
+                  style={{
+                    height: `${(day.totalMinutes / maxDailySleep) * 100}%`,
+                  }}
+                />
+              </div>
+
+              <span className="sleep-weekly-day-label">{day.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {activeSession ? (

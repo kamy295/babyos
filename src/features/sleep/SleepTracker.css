@@ -239,6 +239,85 @@
   font-size: 13px;
 }
 
+/* Weekly sleep summary */
+
+.sleep-weekly-summary {
+  padding: 18px;
+  border: 1px solid #e9dfd6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sleep-weekly-summary h3 {
+  margin: 0 0 16px;
+  color: #493a31;
+  font-size: 16px;
+}
+
+.sleep-weekly-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.sleep-weekly-stats p {
+  margin: 0 0 6px;
+  color: #8b817a;
+  font-size: 13px;
+}
+
+.sleep-weekly-stats strong {
+  color: #604b3f;
+  font-size: 21px;
+}
+
+.sleep-weekly-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  height: 140px;
+}
+
+.sleep-weekly-day {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sleep-weekly-bar-value {
+  color: #8b817a;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.sleep-weekly-bar-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 90px;
+}
+
+.sleep-weekly-bar {
+  width: 65%;
+  min-height: 0;
+  border-radius: 6px 6px 2px 2px;
+  background: #a88973;
+  transition: height 0.2s ease;
+}
+
+.sleep-weekly-day-label {
+  color: #78695e;
+  font-size: 12px;
+}
+
 @media (max-width: 600px) {
   .sleep-section {
     padding: 16px;
