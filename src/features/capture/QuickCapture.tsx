@@ -53,13 +53,17 @@ function QuickCapture({
           <p className="review-content">{draftNote}</p>
 
           <div className="review-actions">
-            <button type="button" onClick={onConfirmNote}>
+            <button
+              type="button"
+              className="action-button"
+              onClick={onConfirmNote}
+            >
               Confirm and save
             </button>
 
             <button
               type="button"
-              className="discard-button"
+              className="action-button discard-button"
               onClick={onDiscardDraft}
             >
               Discard

@@ -1,5 +1,6 @@
 import type { FamilyNote, NoteCategory } from "../../types/notes";
 import CategoryDropdown from "../../components/ui/CategoryDropdown";
+import { formatDateTime } from "../../utils/date";
 
 type NoteCardProps = {
   note: FamilyNote;
@@ -78,7 +79,7 @@ function NoteCard({
           <div>
             <p>{note.content}</p>
             <span>
-              {note.category} · {note.createdAt}
+              {note.category} · {formatDateTime(note.createdAt)}
             </span>
           </div>
 

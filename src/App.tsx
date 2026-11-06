@@ -10,8 +10,12 @@ import QuickCapture from "./features/capture/QuickCapture";
 import TaskManager from "./features/tasks/TaskManager";
 import { type Task, type TaskFilter } from "./types/tasks";
 import AskBabyOS from "./features/ask/AskBabyOS";
+import SleepTracker from "./features/sleep/SleepTracker";
+import type { SleepSession } from "./types/sleep";
 
 const STORAGE_KEY = "babyos:family-notes";
+const SLEEP_STORAGE_KEY = "babyos:sleep-sessions";
+const TASK_STORAGE_KEY = "babyos:tasks";
 
 function isFamilyNote(value: unknown): value is FamilyNote {
   if (typeof value !== "object" || value === null) {
@@ -47,8 +51,6 @@ function loadSavedNotes(): FamilyNote[] {
   }
 }
 
-const TASK_STORAGE_KEY = "babyos:tasks";
-
 function loadSavedTasks(): Task[] {
   try {
     const storedTasks = localStorage.getItem(TASK_STORAGE_KEY);
@@ -74,6 +76,36 @@ function loadSavedTasks(): Task[] {
   }
 }
 
+function isSleepSession(value: unknown): value is SleepSession {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const session = value as Record<string, unknown>;
+
+  return (
+    typeof session.id === "number" &&
+    typeof session.startTime === "string" &&
+    (typeof session.endTime === "string" || session.endTime === null)
+  );
+}
+
+function loadSavedSleepSessions(): SleepSession[] {
+  try {
+    const storedSessions = localStorage.getItem(SLEEP_STORAGE_KEY);
+
+    if (!storedSessions) return [];
+
+    const parsedSessions: unknown = JSON.parse(storedSessions);
+
+    if (!Array.isArray(parsedSessions)) return [];
+
+    return parsedSessions.filter(isSleepSession);
+  } catch {
+    return [];
+  }
+}
+
 function App() {
   const [noteInput, setNoteInput] = useState("");
   const [draftNote, setDraftNote] = useState("");
@@ -93,6 +125,10 @@ function App() {
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editTaskDueDate, setEditTaskDueDate] = useState("");
 
+  const [sleepSessions, setSleepSessions] = useState<SleepSession[]>(
+    loadSavedSleepSessions,
+  );
+
   const handleAddNote = () => {
     const trimmedNote = noteInput.trim();
 
@@ -109,7 +145,7 @@ function App() {
       id: Date.now(),
       content: draftNote,
       category: noteCategory,
-      createdAt: new Date().toLocaleString(),
+      createdAt: new Date().toISOString(),
     };
 
     setSavedNotes((previousNotes) => [newNote, ...previousNotes]);
@@ -214,6 +250,53 @@ function App() {
     }
   };
 
+  const pendingTasksCount = tasks.filter((task) => !task.completed).length;
+
+  const handleStartSleep = () => {
+    setSleepSessions((previousSessions) => {
+      const hasActiveSession = previousSessions.some(
+        (session) => session.endTime === null,
+      );
+
+      if (hasActiveSession) return previousSessions;
+
+      return [
+        {
+          id: Date.now(),
+          startTime: new Date().toISOString(),
+          endTime: null,
+        },
+        ...previousSessions,
+      ];
+    });
+  };
+
+  const handleEndSleep = () => {
+    setSleepSessions((previousSessions) => {
+      const activeSession = previousSessions.find(
+        (session) => session.endTime === null,
+      );
+
+      if (!activeSession) return previousSessions;
+
+      return previousSessions.map((session) =>
+        session.id === activeSession.id
+          ? { ...session, endTime: new Date().toISOString() }
+          : session,
+      );
+    });
+  };
+
+  const handleAddSleepSession = (startTime: string, endTime: string) => {
+    const newSession: SleepSession = {
+      id: Date.now(),
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+    };
+
+    setSleepSessions((previousSessions) => [newSession, ...previousSessions]);
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedNotes));
@@ -229,6 +312,14 @@ function App() {
       console.error("Failed to save tasks:", error);
     }
   }, [tasks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SLEEP_STORAGE_KEY, JSON.stringify(sleepSessions));
+    } catch (error) {
+      console.error("Failed to save sleep sessions:", error);
+    }
+  }, [sleepSessions]);
 
   return (
     <main className="app">
@@ -277,7 +368,7 @@ function App() {
           <article className="overview-card">
             <span className="card-icon">✓</span>
             <p>Tasks</p>
-            <h3>0 pending</h3>
+            <h3>{pendingTasksCount} pending</h3>
           </article>
 
           <article className="overview-card">
@@ -287,6 +378,13 @@ function App() {
           </article>
         </div>
       </section>
+
+      <SleepTracker
+        sleepSessions={sleepSessions}
+        onStartSleep={handleStartSleep}
+        onEndSleep={handleEndSleep}
+        onAddSleepSession={handleAddSleepSession}
+      />
 
       <AskBabyOS notes={savedNotes} tasks={tasks} />
 

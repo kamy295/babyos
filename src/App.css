@@ -90,6 +90,7 @@
 /* Section spacing */
 
 .overview,
+.sleep-section,
 .tasks-section,
 .ask-section {
   margin-top: 40px;
