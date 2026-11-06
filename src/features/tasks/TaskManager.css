@@ -1,0 +1,159 @@
+/* Tasks section */
+
+.tasks-section {
+  padding: 24px;
+  border: 1px solid #eee7e1;
+  border-radius: 18px;
+  background: #fff;
+}
+
+/* Task form */
+
+.task-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.task-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e8e1db;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.task-form button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #80624f;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Task list */
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #eee7e1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.task-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.task-due-date {
+  color: #827a74;
+  font-size: 12px;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Task edit form */
+
+/* Task edit form */
+
+.task-edit-form {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.task-edit-form input {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e8e1db;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.task-edit-form input:first-child {
+  flex: 1;
+}
+
+.task-edit-form input[type="date"] {
+  flex: 0 0 150px;
+}
+
+.task-edit-form button {
+  flex-shrink: 0;
+}
+
+/* Responsive styles */
+
+@media (max-width: 600px) {
+  .task-form {
+    flex-direction: column;
+  }
+
+  .task-item {
+    align-items: flex-start;
+  }
+}
+
+/* Task edit form - mobile */
+
+@media (max-width: 600px) {
+  .task-edit-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .task-edit-form input:first-child,
+  .task-edit-form input[type="date"] {
+    flex: none;
+    width: 100%;
+    height: 42px;
+    min-height: 42px;
+    box-sizing: border-box;
+  }
+
+  .task-edit-form button {
+    width: 100%;
+    min-height: 40px;
+  }
+}
+
+.task-actions .action-button {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.task-details input[type="checkbox"] {
+  accent-color: #80624f;
+  cursor: pointer;
+}
+
+.task-details .completed {
+  text-decoration: line-through;
+  color: #89817b;
+}

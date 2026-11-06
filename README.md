@@ -1,49 +1,75 @@
-# BabyOS
+# React + TypeScript + Vite
 
-An AI-powered family companion that helps parents organize childcare notes, tasks, and important moments.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Problem
+Currently, two official plugins are available:
 
-Parents often rely on memory, scattered messages, and separate apps to track everyday childcare information. Finding something they recorded earlier can be difficult.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Initial target user
+## React Compiler
 
-A busy parent of a baby or toddler who wants a simple way to record events and retrieve them later.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Core user journey
+## Expanding the ESLint configuration
 
-1. Enter a natural-language note.
-2. Review the events and tasks extracted from it.
-3. Correct or confirm the proposed information.
-4. Save the information to the timeline.
-5. Find it later using the timeline or a question.
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-## Month 1 scope
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-- Responsive dashboard
-- Timeline with sample data
-- Task list
-- Add, edit, and delete actions
-- Mock AI capture and review flow
-- Local prototype persistence
-- Basic automated tests
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-## Not in scope yet
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 
-- Medical diagnosis or treatment recommendations
-- Real AI integration
-- Multi-user collaboration
-- Native mobile apps
-- Payments
+```
 
-## Success criteria
+You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
 
-A parent can record a note, review the proposed entries, save them, refresh the page, and find the saved information again.
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-## Technology
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 
-React, TypeScript, Vite, Tailwind CSS, Vitest, and React Testing Library.
-
-## Current status
-
-Planning and initial setup.
+```
