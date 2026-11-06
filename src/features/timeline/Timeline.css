@@ -1,0 +1,138 @@
+/* Timeline section */
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Individual note card */
+
+.note-card {
+  padding: 16px;
+  border: 1px solid #eee7e1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.note-card p {
+  margin: 10px 0;
+  color: #514a45;
+  line-height: 1.6;
+}
+
+/* Note actions */
+
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-button {
+  border: none;
+  background: transparent;
+  color: #a45d52;
+  cursor: pointer;
+}
+
+/* Timeline filters */
+
+.timeline-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.timeline-filters button {
+  padding: 7px 12px;
+  border: 1px solid #e8e1db;
+  border-radius: 20px;
+  background: #fff;
+  color: #80624f;
+  cursor: pointer;
+}
+
+.timeline-filters button.active {
+  background: #80624f;
+  color: #fff;
+  border-color: #80624f;
+}
+
+/* Edit note form */
+
+.edit-note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-note-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e8e1db;
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.edit-note-form button {
+  align-self: flex-start;
+}
+
+/* Delete confirmation */
+
+.delete-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.delete-confirmation span {
+  margin: 0;
+  line-height: 1;
+}
+
+.note-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.note-card > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-card p {
+  overflow-wrap: anywhere;
+}
+
+.note-actions {
+  flex-shrink: 0;
+}
+
+/* Responsive styles */
+
+@media (max-width: 600px) {
+  .note-card {
+    padding: 14px;
+  }
+
+  .timeline-filters {
+    gap: 6px;
+  }
+
+  .note-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .note-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
