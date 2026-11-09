@@ -16,6 +16,9 @@ import type { SleepSession } from "./types/sleep";
 const STORAGE_KEY = "babyos:family-notes";
 const SLEEP_STORAGE_KEY = "babyos:sleep-sessions";
 const TASK_STORAGE_KEY = "babyos:tasks";
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "babyos:theme";
 
 function isFamilyNote(value: unknown): value is FamilyNote {
   if (typeof value !== "object" || value === null) {
@@ -151,7 +154,18 @@ function formatSleepDuration(totalMinutes: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+function loadSavedTheme(): Theme {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "dark"
+      ? "dark"
+      : "light";
+  } catch {
+    return "light";
+  }
+}
+
 function App() {
+  const [theme, setTheme] = useState<Theme>(loadSavedTheme);
   const [noteInput, setNoteInput] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [savedNotes, setSavedNotes] = useState<FamilyNote[]>(loadSavedNotes);
@@ -371,16 +385,56 @@ function App() {
     }
   }, [sleepSessions]);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      console.error("Failed to save theme preference:", error);
+    }
+  }, [theme]);
+
   return (
     <main className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-icon">B</span>
-          <span>BabyOS</span>
+          <img src="/babyos-logo-new.png" alt="BabyOS" className="brand-logo" />
         </div>
 
-        <span className="header-label">Your parenting companion</span>
+        <div className="header-actions">
+          <span className="header-label">
+            Your little one's world, a little more organised.
+          </span>
+
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() =>
+              setTheme((currentTheme) =>
+                currentTheme === "light" ? "dark" : "light",
+              )
+            }
+            aria-label={
+              theme === "light" ? "Switch to dark mode" : "Switch to light mode"
+            }
+            title={
+              theme === "light" ? "Switch to dark mode" : "Switch to light mode"
+            }
+          >
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
+        </div>
       </header>
+
+      <nav className="app-nav" aria-label="Dashboard navigation">
+        <a href="#overview">Overview</a>
+        <a href="#quick-capture">Quick Capture</a>
+        <a href="#sleep-tracker">Sleep</a>
+        <a href="#ask-babyos">Ask BabyOS</a>
+        <a href="#tasks">Tasks</a>
+        <a href="#timeline">Timeline</a>
+      </nav>
 
       <section className="welcome">
         <p className="eyebrow">YOUR FAMILY, IN ONE PLACE</p>
@@ -391,18 +445,7 @@ function App() {
         </p>
       </section>
 
-      <QuickCapture
-        noteInput={noteInput}
-        noteCategory={noteCategory}
-        draftNote={draftNote}
-        onNoteInputChange={setNoteInput}
-        onCategoryChange={setNoteCategory}
-        onAddNote={handleAddNote}
-        onConfirmNote={handleConfirmNote}
-        onDiscardDraft={() => setDraftNote("")}
-      />
-
-      <section className="overview">
+      <section className="overview nav-section" id="overview">
         <div className="section-heading">
           <h2>Your overview</h2>
           <span>Today</span>
@@ -437,53 +480,74 @@ function App() {
         </div>
       </section>
 
-      <SleepTracker
-        sleepSessions={sleepSessions}
-        onStartSleep={handleStartSleep}
-        onEndSleep={handleEndSleep}
-        onAddSleepSession={handleAddSleepSession}
-      />
+      <div id="quick-capture" className="nav-section">
+        <QuickCapture
+          noteInput={noteInput}
+          noteCategory={noteCategory}
+          draftNote={draftNote}
+          onNoteInputChange={setNoteInput}
+          onCategoryChange={setNoteCategory}
+          onAddNote={handleAddNote}
+          onConfirmNote={handleConfirmNote}
+          onDiscardDraft={() => setDraftNote("")}
+        />
+      </div>
 
-      <AskBabyOS notes={savedNotes} tasks={tasks} />
+      <div id="sleep-tracker" className="nav-section">
+        <SleepTracker
+          sleepSessions={sleepSessions}
+          onStartSleep={handleStartSleep}
+          onEndSleep={handleEndSleep}
+          onAddSleepSession={handleAddSleepSession}
+        />
+      </div>
 
-      <TaskManager
-        tasks={tasks}
-        taskTitle={taskTitle}
-        taskDueDate={taskDueDate}
-        activeFilter={activeTaskFilter}
-        onTaskTitleChange={setTaskTitle}
-        onTaskDueDateChange={setTaskDueDate}
-        onAddTask={handleAddTask}
-        onFilterChange={setActiveTaskFilter}
-        onToggleComplete={handleToggleTask}
-        editingTaskId={editingTaskId}
-        editTaskTitle={editTaskTitle}
-        editTaskDueDate={editTaskDueDate}
-        onEditRequest={handleEditTask}
-        onEditTitleChange={setEditTaskTitle}
-        onEditDueDateChange={setEditTaskDueDate}
-        onSaveEdit={handleSaveTaskEdit}
-        onCancelEdit={() => setEditingTaskId(null)}
-        onDelete={handleDeleteTask}
-      />
+      <div id="ask-babyos" className="nav-section">
+        <AskBabyOS notes={savedNotes} tasks={tasks} />
+      </div>
 
-      <Timeline
-        notes={savedNotes}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        editingNoteId={editingNoteId}
-        deletingNoteId={deletingNoteId}
-        editContent={editContent}
-        editCategory={editCategory}
-        onEdit={handleEditNote}
-        onEditContentChange={setEditContent}
-        onEditCategoryChange={setEditCategory}
-        onSaveEdit={handleSaveEdit}
-        onCancelEdit={() => setEditingNoteId(null)}
-        onDeleteRequest={setDeletingNoteId}
-        onConfirmDelete={handleDeleteNote}
-        onCancelDelete={() => setDeletingNoteId(null)}
-      />
+      <div id="tasks" className="nav-section">
+        <TaskManager
+          tasks={tasks}
+          taskTitle={taskTitle}
+          taskDueDate={taskDueDate}
+          activeFilter={activeTaskFilter}
+          onTaskTitleChange={setTaskTitle}
+          onTaskDueDateChange={setTaskDueDate}
+          onAddTask={handleAddTask}
+          onFilterChange={setActiveTaskFilter}
+          onToggleComplete={handleToggleTask}
+          editingTaskId={editingTaskId}
+          editTaskTitle={editTaskTitle}
+          editTaskDueDate={editTaskDueDate}
+          onEditRequest={handleEditTask}
+          onEditTitleChange={setEditTaskTitle}
+          onEditDueDateChange={setEditTaskDueDate}
+          onSaveEdit={handleSaveTaskEdit}
+          onCancelEdit={() => setEditingTaskId(null)}
+          onDelete={handleDeleteTask}
+        />
+      </div>
+
+      <div id="timeline" className="nav-section">
+        <Timeline
+          notes={savedNotes}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          editingNoteId={editingNoteId}
+          deletingNoteId={deletingNoteId}
+          editContent={editContent}
+          editCategory={editCategory}
+          onEdit={handleEditNote}
+          onEditContentChange={setEditContent}
+          onEditCategoryChange={setEditCategory}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={() => setEditingNoteId(null)}
+          onDeleteRequest={setDeletingNoteId}
+          onConfirmDelete={handleDeleteNote}
+          onCancelDelete={() => setDeletingNoteId(null)}
+        />
+      </div>
     </main>
   );
 }

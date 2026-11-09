@@ -2,9 +2,9 @@
 
 .tasks-section {
   padding: 24px;
-  border: 1px solid #eee7e1;
+  border: 1px solid var(--border-color);
   border-radius: 18px;
-  background: #fff;
+  background: var(--surface-background);
 }
 
 /* Task form */
@@ -19,17 +19,19 @@
   flex: 1;
   min-width: 0;
   padding: 12px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font: inherit;
+  color: var(--text-primary);
+  background: var(--input-background);
 }
 
 .task-form button {
   padding: 10px 16px;
   border: none;
   border-radius: 8px;
-  background: #80624f;
-  color: #fff;
+  background: var(--action-color);
+  color: white;
   font: inherit;
   cursor: pointer;
 }
@@ -48,9 +50,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px;
-  border: 1px solid #eee7e1;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface-background);
 }
 
 .task-details {
@@ -59,10 +61,11 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  color: var(--text-primary);
 }
 
 .task-due-date {
-  color: #827a74;
+  color: var(--text-soft);
   font-size: 12px;
 }
 
@@ -71,8 +74,6 @@
   align-items: center;
   gap: 8px;
 }
-
-/* Task edit form */
 
 /* Task edit form */
 
@@ -87,9 +88,11 @@
 .task-edit-form input {
   min-width: 0;
   padding: 10px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font: inherit;
+  color: var(--text-primary);
+  background: var(--input-background);
 }
 
 .task-edit-form input:first-child {
@@ -104,6 +107,25 @@
   flex-shrink: 0;
 }
 
+/* Task action buttons */
+
+.task-actions .action-button {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.task-details input[type="checkbox"] {
+  accent-color: var(--action-color);
+  cursor: pointer;
+}
+
+.task-details .completed {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
 /* Responsive styles */
 
 @media (max-width: 600px) {
@@ -114,11 +136,7 @@
   .task-item {
     align-items: flex-start;
   }
-}
 
-/* Task edit form - mobile */
-
-@media (max-width: 600px) {
   .task-edit-form {
     flex-direction: column;
     align-items: stretch;
@@ -139,21 +157,4 @@
     width: 100%;
     min-height: 40px;
   }
-}
-
-.task-actions .action-button {
-  font-size: 13px !important;
-  font-weight: 400 !important;
-  font-family: inherit;
-  line-height: 1.2;
-}
-
-.task-details input[type="checkbox"] {
-  accent-color: #80624f;
-  cursor: pointer;
-}
-
-.task-details .completed {
-  text-decoration: line-through;
-  color: #89817b;
 }

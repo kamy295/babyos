@@ -170,14 +170,14 @@ function SleepTracker({
   const handlePastSleepSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!startTime || durationMinutes === "") {
+    if (!startTime || durationHours === "") {
       setFormError("Please enter the sleep start time and duration.");
       return;
     }
 
     const startDate = new Date(startTime);
     const hours = Number(durationHours);
-    const minutes = Number(durationMinutes);
+    const minutes = Number(durationMinutes || 0);
 
     if (
       Number.isNaN(startDate.getTime()) ||
@@ -287,7 +287,6 @@ function SleepTracker({
                 max="59"
                 value={durationMinutes}
                 onChange={(event) => setDurationMinutes(event.target.value)}
-                required
               />
               <span>Minutes</span>
             </div>

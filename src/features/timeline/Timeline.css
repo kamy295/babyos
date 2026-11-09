@@ -9,16 +9,26 @@
 /* Individual note card */
 
 .note-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 16px;
-  border: 1px solid #eee7e1;
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface-background);
+}
+
+.note-card > div:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .note-card p {
   margin: 10px 0;
-  color: #514a45;
+  color: var(--text-body);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 /* Note actions */
@@ -27,12 +37,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .delete-button {
   border: none;
   background: transparent;
-  color: #a45d52;
+  color: #c4776c;
   cursor: pointer;
 }
 
@@ -47,17 +58,17 @@
 
 .timeline-filters button {
   padding: 7px 12px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 20px;
-  background: #fff;
-  color: #80624f;
+  background: var(--surface-background);
+  color: var(--action-color);
   cursor: pointer;
 }
 
 .timeline-filters button.active {
-  background: #80624f;
-  color: #fff;
-  border-color: #80624f;
+  background: var(--primary-color);
+  color: var(--page-background);
+  border-color: var(--primary-color);
 }
 
 /* Edit note form */
@@ -71,10 +82,17 @@
 .edit-note-form textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font: inherit;
   resize: vertical;
+  color: var(--text-primary);
+  background: var(--input-background);
+}
+
+.edit-note-form textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
 }
 
 .edit-note-form button {
@@ -95,44 +113,21 @@
   line-height: 1;
 }
 
-.note-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.note-card > div:first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-.note-card p {
-  overflow-wrap: anywhere;
-}
-
-.note-actions {
-  flex-shrink: 0;
-}
-
 /* Responsive styles */
 
 @media (max-width: 600px) {
   .note-card {
-    padding: 14px;
-  }
-
-  .timeline-filters {
-    gap: 6px;
-  }
-
-  .note-card {
     align-items: flex-start;
     flex-direction: column;
+    padding: 14px;
   }
 
   .note-actions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .timeline-filters {
+    gap: 6px;
   }
 }
