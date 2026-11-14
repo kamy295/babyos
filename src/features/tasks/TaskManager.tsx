@@ -160,7 +160,7 @@ function TaskManager({
 
                     <button
                       type="button"
-                      className="action-button"
+                      className="action-button delete-button"
                       onClick={() => onDelete(task.id)}
                     >
                       Delete

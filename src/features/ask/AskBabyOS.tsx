@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FamilyNote } from "../../types/notes";
 import type { Task } from "../../types/tasks";
-import { answerQuestion } from "./answerQuestion";
+import { askBabyOS } from "./askBabyOSApi";
 import "./AskBabyOS.css";
 
 type AskBabyOSProps = {
@@ -19,17 +19,35 @@ const SUGGESTED_QUESTIONS = [
 function AskBabyOS({ notes, tasks }: AskBabyOSProps) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleAsk = () => {
-    if (!question.trim()) return;
+  const handleAsk = async (selectedQuestion = question) => {
+    const trimmedQuestion = selectedQuestion.trim();
 
-    const result = answerQuestion(question, notes, tasks);
-    setAnswer(result);
+    if (!trimmedQuestion || isLoading) return;
+
+    setQuestion(trimmedQuestion);
+    setIsLoading(true);
+    setError("");
+    setAnswer("");
+
+    try {
+      const result = await askBabyOS(trimmedQuestion, notes, tasks);
+      setAnswer(result);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSuggestedQuestion = (suggestion: string) => {
-    setQuestion(suggestion);
-    setAnswer(answerQuestion(suggestion, notes, tasks));
+    void handleAsk(suggestion);
   };
 
   return (
@@ -47,6 +65,7 @@ function AskBabyOS({ notes, tasks }: AskBabyOSProps) {
             key={suggestion}
             type="button"
             onClick={() => handleSuggestedQuestion(suggestion)}
+            disabled={isLoading}
           >
             {suggestion}
           </button>
@@ -59,15 +78,32 @@ function AskBabyOS({ notes, tasks }: AskBabyOSProps) {
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") handleAsk();
+            if (event.key === "Enter") void handleAsk();
           }}
           placeholder="Ask something about your baby..."
+          disabled={isLoading}
         />
 
-        <button type="button" onClick={handleAsk} disabled={!question.trim()}>
-          Ask
+        <button
+          type="button"
+          onClick={() => void handleAsk()}
+          disabled={!question.trim() || isLoading}
+        >
+          {isLoading ? "Thinking..." : "Ask"}
         </button>
       </div>
+
+      {error && (
+        <p className="ask-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {isLoading && (
+        <p className="ask-loading" role="status">
+          BabyOS is looking through your saved information...
+        </p>
+      )}
 
       {answer && (
         <div className="answer-card">

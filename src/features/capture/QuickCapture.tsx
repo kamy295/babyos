@@ -1,27 +1,36 @@
 import CategoryDropdown from "../../components/ui/CategoryDropdown";
-import { NOTE_CATEGORIES, type NoteCategory } from "../../types/notes";
+import { NOTE_CATEGORIES } from "../../types/notes";
+import type { AiSuggestedEvent } from "./quickCaptureApi";
 import "./QuickCapture.css";
 
 type QuickCaptureProps = {
   noteInput: string;
-  noteCategory: NoteCategory;
-  draftNote: string;
+  draftEvents: AiSuggestedEvent[];
+  isProcessingCapture: boolean;
+  captureError: string;
+  isSavingCapture: boolean;
   onNoteInputChange: (value: string) => void;
-  onCategoryChange: (value: NoteCategory) => void;
   onAddNote: () => void;
   onConfirmNote: () => void;
   onDiscardDraft: () => void;
+  onUpdateDraftEvent: (
+    index: number,
+    field: "content" | "category",
+    value: string,
+  ) => void;
 };
 
 function QuickCapture({
   noteInput,
-  noteCategory,
-  draftNote,
+  draftEvents,
+  isProcessingCapture,
+  captureError,
   onNoteInputChange,
-  onCategoryChange,
   onAddNote,
   onConfirmNote,
   onDiscardDraft,
+  onUpdateDraftEvent,
+  isSavingCapture,
 }: QuickCaptureProps) {
   return (
     <section className="quick-capture">
@@ -37,28 +46,57 @@ function QuickCapture({
         rows={3}
       />
 
-      <CategoryDropdown
-        value={noteCategory}
-        options={NOTE_CATEGORIES}
-        onChange={onCategoryChange}
-      />
-
-      <button type="button" onClick={onAddNote} disabled={!noteInput.trim()}>
-        + Add a note
+      <button
+        type="button"
+        onClick={onAddNote}
+        disabled={!noteInput.trim() || isProcessingCapture}
+      >
+        {isProcessingCapture ? "Organising your note..." : "+ Add a note"}
       </button>
 
-      {draftNote && (
+      {captureError && (
+        <p className="capture-error" role="alert">
+          {captureError}
+        </p>
+      )}
+
+      {draftEvents.length > 0 && (
         <div className="review-card">
-          <p className="review-label">REVIEW YOUR NOTE</p>
-          <p className="review-content">{draftNote}</p>
+          <p className="review-label">
+            REVIEW YOUR NOTES ({draftEvents.length})
+          </p>
+
+          {draftEvents.map((event, index) => (
+            <div className="draft-event" key={index}>
+              <textarea
+                value={event.content}
+                onChange={(e) =>
+                  onUpdateDraftEvent(index, "content", e.target.value)
+                }
+                rows={2}
+              />
+
+              <CategoryDropdown
+                value={event.category}
+                options={NOTE_CATEGORIES}
+                onChange={(value) =>
+                  onUpdateDraftEvent(index, "category", value)
+                }
+              />
+            </div>
+          ))}
 
           <div className="review-actions">
             <button
               type="button"
               className="action-button"
               onClick={onConfirmNote}
+              disabled={
+                isSavingCapture ||
+                draftEvents.some((event) => !event.content.trim())
+              }
             >
-              Confirm and save
+              {isSavingCapture ? "Saving..." : "Confirm and save all"}
             </button>
 
             <button

@@ -45,6 +45,16 @@
   background: transparent;
   color: #c4776c;
   cursor: pointer;
+  border: 1px solid #eea297;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 0 10px;
+}
+
+.delete-button:hover {
+  background: #a94442;
+  transition: background 0.2s ease;
+  color: white;
 }
 
 /* Timeline filters */
