@@ -1,5 +1,6 @@
 import type { FamilyNote } from "../../types/notes";
 import type { Task } from "../../types/tasks";
+import { formatDateTime } from "../../utils/date";
 
 export function answerQuestion(
   question: string,
@@ -50,7 +51,7 @@ export function answerQuestion(
       return "I couldn't find any saved sleep records.";
     }
 
-    return `Your latest saved sleep note:\n"${latestSleep.content}"\nRecorded on: ${latestSleep.createdAt}`;
+    return `Your latest saved sleep note:\n"${latestSleep.content}"\nRecorded on: `;
   }
 
   // Latest feeding note
@@ -66,7 +67,7 @@ export function answerQuestion(
       return "I couldn't find any saved feeding records.";
     }
 
-    return `Your latest saved feeding note:\n"${latestFeeding.content}"\nRecorded on: ${latestFeeding.createdAt}`;
+    return `Your latest saved feeding note:\n"${latestFeeding.content}"\nRecorded on: ${formatDateTime(latestFeeding.createdAt)}`;
   }
 
   // Recent notes

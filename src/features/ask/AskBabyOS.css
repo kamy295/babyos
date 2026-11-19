@@ -2,9 +2,9 @@
 
 .ask-section {
   padding: 24px;
-  border: 1px solid #eee7e1;
+  border: 1px solid var(--border-color);
   border-radius: 18px;
-  background: #fff;
+  background: var(--surface-background);
 }
 
 /* Suggested questions */
@@ -18,16 +18,16 @@
 
 .suggested-questions button {
   padding: 8px 12px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 20px;
-  background: #faf8f6;
-  color: #80624f;
+  background: var(--page-background);
+  color: var(--action-color);
   font: inherit;
   cursor: pointer;
 }
 
 .suggested-questions button:hover {
-  background: #f0e8e1;
+  background: var(--primary-hover);
 }
 
 /* Question input */
@@ -41,17 +41,24 @@
   flex: 1;
   min-width: 0;
   padding: 12px;
-  border: 1px solid #e8e1db;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font: inherit;
+  color: var(--text-primary);
+  background: var(--input-background);
+}
+
+.ask-input-wrapper input:focus {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
 }
 
 .ask-input-wrapper button {
   padding: 10px 16px;
   border: none;
   border-radius: 8px;
-  background: #80624f;
-  color: #fff;
+  background: var(--action-color);
+  color: white;
   font: inherit;
   cursor: pointer;
 }
@@ -61,13 +68,13 @@
 .answer-card {
   margin-top: 20px;
   padding: 18px;
-  border: 1px solid #e8ded5;
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  background: #faf7f4;
+  background: var(--surface-secondary);
 }
 
 .answer-label {
-  color: #98745f;
+  color: var(--accent-soft);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -75,7 +82,7 @@
 
 .answer-content {
   margin-top: 12px;
-  color: #514a45;
+  color: var(--text-body);
   line-height: 1.6;
 }
 

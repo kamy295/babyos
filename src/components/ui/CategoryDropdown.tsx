@@ -51,7 +51,7 @@ function CategoryDropdown({ value, options, onChange }: CategoryDropdownProps) {
               }}
             >
               {option}
-              {value === option && <span>✓</span>}
+              {value === option && <span> ✓</span>}
             </button>
           ))}
         </div>

@@ -1,0 +1,88 @@
+.edit-event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.edit-event-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.edit-event-form input,
+.edit-event-form textarea,
+.edit-event-form select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--input-background);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.edit-event-form textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.edit-event-form input,
+.edit-event-form select {
+  min-height: 42px;
+}
+
+.edit-event-form input::placeholder,
+.edit-event-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.edit-event-form input:focus,
+.edit-event-form textarea:focus,
+.edit-event-form select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.edit-event-form select {
+  cursor: pointer;
+}
+
+.edit-event-time-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.edit-event-form .error-message {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #b94a48;
+  border-radius: 8px;
+  color: #d66b68;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .edit-event-form {
+    gap: 16px;
+  }
+
+  .edit-event-time-fields {
+    grid-template-columns: 1fr;
+  }
+}

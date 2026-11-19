@@ -1,0 +1,37 @@
+import type { FamilyNote } from "../../types/notes";
+import type { Task } from "../../types/tasks";
+
+type AskBabyOSResponse = {
+  answer: string;
+  error?: string;
+};
+
+export async function askBabyOS(
+  question: string,
+  notes: FamilyNote[],
+  tasks: Task[],
+): Promise<string> {
+  const response = await fetch("/api/ai/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      question,
+      notes,
+      tasks,
+    }),
+  });
+
+  const data = (await response.json()) as AskBabyOSResponse;
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Unable to get an answer right now.");
+  }
+
+  if (typeof data.answer !== "string" || !data.answer.trim()) {
+    throw new Error("BabyOS couldn't generate an answer. Please try again.");
+  }
+
+  return data.answer;
+}
