@@ -57,6 +57,7 @@ function Timeline({
         <div className="notes-list">
           {filteredEvents.map((event) => (
             <EventCard
+              key={event.id}
               event={event}
               onDelete={onDeleteEvent}
               isDeleting={deletingEventId === event.id}

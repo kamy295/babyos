@@ -1,5 +1,5 @@
 import "./App.css";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type FamilyNote,
   type FamilyEvent,
@@ -23,9 +23,12 @@ import { useNotification } from "./components/notifications/useNotification";
 import EditEventDrawer, {
   type EventUpdates,
 } from "./features/timeline/EditEventDrawer";
+import {
+  createSleepEvent,
+  completeSleepEvent,
+} from "./features/sleep/sleepApi";
 
 const STORAGE_KEY = "babyos:family-notes";
-const SLEEP_STORAGE_KEY = "babyos:sleep-sessions";
 const TASK_STORAGE_KEY = "babyos:tasks";
 type Theme = "light" | "dark";
 
@@ -109,35 +112,6 @@ function loadSavedTasks(): Task[] {
   }
 }
 
-function isSleepSession(value: unknown): value is SleepSession {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const session = value as Record<string, unknown>;
-
-  return (
-    typeof session.id === "number" &&
-    typeof session.startTime === "string" &&
-    (typeof session.endTime === "string" || session.endTime === null)
-  );
-}
-
-function loadSavedSleepSessions(): SleepSession[] {
-  try {
-    const storedSessions = localStorage.getItem(SLEEP_STORAGE_KEY);
-
-    if (!storedSessions) return [];
-
-    const parsedSessions: unknown = JSON.parse(storedSessions);
-
-    if (!Array.isArray(parsedSessions)) return [];
-
-    return parsedSessions.filter(isSleepSession);
-  } catch {
-    return [];
-  }
-}
 function getTodaySleepDuration(sessions: SleepSession[]): number {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -194,6 +168,40 @@ function loadSavedTheme(): Theme {
   }
 }
 
+function mapSleepEventsToSessions(events: FamilyEvent[]): SleepSession[] {
+  return events
+    .filter(
+      (event) =>
+        event.category === "Sleep" &&
+        event.eventDate !== null &&
+        event.startTime !== null,
+    )
+    .map((event) => {
+      const startTime = new Date(`${event.eventDate}T${event.startTime}+05:30`);
+
+      let endTime: string | null = null;
+
+      if (event.endTime) {
+        const endDate = new Date(`${event.eventDate}T${event.endTime}+05:30`);
+
+        // An end time earlier than the start time means the session
+        // continued into the following day.
+        if (endDate < startTime) {
+          endDate.setTime(endDate.getTime() + 24 * 60 * 60 * 1000);
+        }
+
+        endTime = endDate.toISOString();
+      }
+
+      return {
+        id: event.id,
+        startTime: startTime.toISOString(),
+        endTime,
+      };
+    })
+    .filter((session) => !Number.isNaN(new Date(session.startTime).getTime()));
+}
+
 function App() {
   const [theme, setTheme] = useState<Theme>(loadSavedTheme);
   const [noteInput, setNoteInput] = useState("");
@@ -221,9 +229,12 @@ function App() {
   const [editingEvent, setEditingEvent] = useState<FamilyEvent | null>(null);
   const [isSavingEvent, setIsSavingEvent] = useState(false);
 
-  const [sleepSessions, setSleepSessions] = useState<SleepSession[]>(
-    loadSavedSleepSessions,
-  );
+  const [isSleepActionInProgress, setIsSleepActionInProgress] = useState(false);
+  const sleepActionInProgress = useRef(false);
+  const [areEventsLoaded, setAreEventsLoaded] = useState(false);
+
+  const sleepSessions = mapSleepEventsToSessions(events);
+
   const todaySleepMinutes = getTodaySleepDuration(sleepSessions);
   const { notify } = useNotification();
 
@@ -508,49 +519,102 @@ function App() {
 
   const pendingTasksCount = tasks.filter((task) => !task.completed).length;
 
-  const handleStartSleep = () => {
-    setSleepSessions((previousSessions) => {
-      const hasActiveSession = previousSessions.some(
-        (session) => session.endTime === null,
-      );
+  const handleStartSleep = async () => {
+    if (sleepActionInProgress.current || activeSleepSession) return;
 
-      if (hasActiveSession) return previousSessions;
+    sleepActionInProgress.current = true;
+    setIsSleepActionInProgress(true);
 
-      return [
-        {
-          id: Date.now(),
-          startTime: new Date().toISOString(),
-          endTime: null,
-        },
-        ...previousSessions,
-      ];
-    });
+    try {
+      await createSleepEvent(new Date().toISOString());
+      await fetchEvents();
+
+      notify({
+        type: "success",
+        title: "Sleep tracking started",
+        message: "Your baby's sleep session has started.",
+      });
+    } catch (error) {
+      notify({
+        type: "error",
+        title: "Unable to start sleep tracking",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Please try again.",
+      });
+    } finally {
+      sleepActionInProgress.current = false;
+      setIsSleepActionInProgress(false);
+    }
   };
 
-  const handleEndSleep = () => {
-    setSleepSessions((previousSessions) => {
-      const activeSession = previousSessions.find(
-        (session) => session.endTime === null,
-      );
+  const handleEndSleep = async () => {
+    if (sleepActionInProgress.current || !activeSleepSession) return;
 
-      if (!activeSession) return previousSessions;
+    sleepActionInProgress.current = true;
+    setIsSleepActionInProgress(true);
 
-      return previousSessions.map((session) =>
-        session.id === activeSession.id
-          ? { ...session, endTime: new Date().toISOString() }
-          : session,
-      );
-    });
+    try {
+      await completeSleepEvent(activeSleepSession, new Date().toISOString());
+
+      await fetchEvents();
+
+      notify({
+        type: "success",
+        title: "Sleep session completed",
+        message: "Your baby's sleep session has been saved.",
+      });
+    } catch (error) {
+      notify({
+        type: "error",
+        title: "Unable to end sleep session",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Please try again.",
+      });
+    } finally {
+      sleepActionInProgress.current = false;
+      setIsSleepActionInProgress(false);
+    }
   };
 
-  const handleAddSleepSession = (startTime: string, endTime: string) => {
-    const newSession: SleepSession = {
-      id: Date.now(),
-      startTime: new Date(startTime).toISOString(),
-      endTime: new Date(endTime).toISOString(),
-    };
+  const handleAddSleepSession = async (
+    startTime: string,
+    endTime: string,
+  ): Promise<boolean> => {
+    if (sleepActionInProgress.current) return false;
 
-    setSleepSessions((previousSessions) => [newSession, ...previousSessions]);
+    sleepActionInProgress.current = true;
+    setIsSleepActionInProgress(true);
+
+    try {
+      await createSleepEvent(startTime, endTime);
+      await fetchEvents();
+
+      notify({
+        type: "success",
+        title: "Past sleep saved",
+        message: "Your sleep history has been updated.",
+      });
+
+      return true;
+    } catch (error) {
+      notify({
+        type: "error",
+        title: "Unable to save past sleep",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Please try again.",
+      });
+
+      return false;
+    } finally {
+      sleepActionInProgress.current = false;
+      setIsSleepActionInProgress(false);
+    }
   };
 
   useEffect(() => {
@@ -568,14 +632,6 @@ function App() {
       console.error("Failed to save tasks:", error);
     }
   }, [tasks]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SLEEP_STORAGE_KEY, JSON.stringify(sleepSessions));
-    } catch (error) {
-      console.error("Failed to save sleep sessions:", error);
-    }
-  }, [sleepSessions]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -624,6 +680,7 @@ function App() {
         }));
 
         setEvents(mappedEvents);
+        setAreEventsLoaded(true);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           return;
@@ -760,6 +817,8 @@ function App() {
           onStartSleep={handleStartSleep}
           onEndSleep={handleEndSleep}
           onAddSleepSession={handleAddSleepSession}
+          areEventsLoaded={areEventsLoaded}
+          isSleepActionInProgress={isSleepActionInProgress}
         />
       </div>
 

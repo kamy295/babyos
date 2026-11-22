@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import {
+  createBabyEvent,
   deleteBabyEvent,
   getBabyEvents,
   updateBabyEvent,
@@ -10,7 +11,7 @@ const events = new Hono();
 
 const uuidSchema = z.string().uuid();
 
-const updateEventSchema = z.object({
+const eventSchema = z.object({
   content: z.string().trim().min(1).max(1000),
   category: z.enum([
     "Sleep",
@@ -36,6 +37,43 @@ events.get("/", async (c) => {
   } catch (error) {
     console.error("Failed to fetch baby events:", error);
     return c.json({ error: "Unable to fetch baby events." }, 500);
+  }
+});
+
+// CREATE a baby event
+events.post("/", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsedBody = eventSchema.safeParse(body);
+
+  if (!parsedBody.success) {
+    return c.json(
+      {
+        error: "Invalid event data.",
+        details: parsedBody.error.flatten(),
+      },
+      400,
+    );
+  }
+
+  try {
+    const result = await createBabyEvent(parsedBody.data);
+
+    return c.json({ event: result }, 201);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505" &&
+      "message" in error &&
+      typeof error.message === "string" &&
+      error.message.includes("idx_one_active_sleep_per_baby")
+    ) {
+      return c.json({ error: "An active sleep session already exists." }, 409);
+    }
+
+    console.error("Failed to create baby event:", error);
+    return c.json({ error: "Unable to create baby event." }, 500);
   }
 });
 
@@ -69,7 +107,7 @@ events.patch("/:id", async (c) => {
   }
 
   const body = await c.req.json().catch(() => null);
-  const parsedBody = updateEventSchema.safeParse(body);
+  const parsedBody = eventSchema.safeParse(body);
 
   if (!parsedBody.success) {
     return c.json(
