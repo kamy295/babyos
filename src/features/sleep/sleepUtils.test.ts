@@ -73,6 +73,18 @@ describe("mapSleepEventsToSessions", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("does not treat equal start and end times as an overnight session", () => {
+    const result = mapSleepEventsToSessions([
+      createEvent({
+        startTime: "08:00",
+        endTime: "08:00",
+      }),
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.startTime).toBe(result[0]?.endTime);
+  });
 });
 
 describe("getTodaySleepDuration", () => {
@@ -105,6 +117,24 @@ describe("getTodaySleepDuration", () => {
     ];
 
     expect(getTodaySleepDuration(sessions, referenceDate)).toBe(0);
+  });
+
+  it("adds multiple completed sessions on the same day", () => {
+    const sessions = [
+      createSession("2026-11-23T01:00:00+05:30", "2026-11-23T03:00:00+05:30"),
+      createSession("2026-11-23T14:00:00+05:30", "2026-11-23T15:30:00+05:30"),
+    ];
+
+    expect(getTodaySleepDuration(sessions, referenceDate)).toBe(210);
+  });
+
+  it("floors the combined duration to whole minutes", () => {
+    const sessions = [
+      createSession("2026-11-23T01:00:00+05:30", "2026-11-23T01:00:30+05:30"),
+      createSession("2026-11-23T02:00:00+05:30", "2026-11-23T02:00:30+05:30"),
+    ];
+
+    expect(getTodaySleepDuration(sessions, referenceDate)).toBe(1);
   });
 });
 
@@ -140,5 +170,29 @@ describe("getWeeklySleepSummary", () => {
     expect(result.days).toHaveLength(7);
     expect(result.weeklyTotal).toBe(120);
     expect(result.dailyAverage).toBe(17);
+  });
+
+  it("splits a multi-day session across calendar days", () => {
+    const sessions = [
+      createSession("2026-11-21T23:00:00+05:30", "2026-11-23T01:00:00+05:30"),
+    ];
+
+    const result = getWeeklySleepSummary(sessions, referenceDate);
+
+    expect(result.days[4]?.totalMinutes).toBe(60);
+    expect(result.days[5]?.totalMinutes).toBe(1440);
+    expect(result.days[6]?.totalMinutes).toBe(60);
+    expect(result.weeklyTotal).toBe(1560);
+  });
+
+  it("excludes sessions outside the seven-day reporting window", () => {
+    const sessions = [
+      createSession("2026-11-16T01:00:00+05:30", "2026-11-16T03:00:00+05:30"),
+    ];
+
+    const result = getWeeklySleepSummary(sessions, referenceDate);
+
+    expect(result.weeklyTotal).toBe(0);
+    expect(result.dailyAverage).toBe(0);
   });
 });
