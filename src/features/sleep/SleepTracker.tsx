@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SleepSession } from "../../types/sleep";
+import { getTodaySleepDuration, getWeeklySleepSummary } from "./sleepUtils";
 import "./SleepTracker.css";
 
 type SleepTrackerProps = {
@@ -44,95 +45,6 @@ function formatDuration(startTime: string, endTime: string): string {
   if (minutes === 0) return `${hours}h`;
 
   return `${hours}h ${minutes}m`;
-}
-function getTodaySleepDuration(sessions: SleepSession[]): number {
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
-  // Start and end of today in Indian Standard Time.
-  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
-  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
-
-  const totalMilliseconds = sessions.reduce((total, session) => {
-    if (!session.endTime) return total;
-
-    const sessionStart = new Date(session.startTime).getTime();
-    const sessionEnd = new Date(session.endTime).getTime();
-
-    if (
-      Number.isNaN(sessionStart) ||
-      Number.isNaN(sessionEnd) ||
-      sessionEnd <= sessionStart
-    ) {
-      return total;
-    }
-
-    const overlapStart = Math.max(sessionStart, todayStart);
-    const overlapEnd = Math.min(sessionEnd, todayEnd);
-
-    return total + Math.max(0, overlapEnd - overlapStart);
-  }, 0);
-
-  return Math.floor(totalMilliseconds / 60000);
-}
-
-function getWeeklySleepSummary(sessions: SleepSession[]) {
-  const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  const today = dateFormatter.format(new Date());
-  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
-
-  const dayDuration = 24 * 60 * 60 * 1000;
-
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const dayStart = todayStart - (6 - index) * dayDuration;
-    const dayEnd = dayStart + dayDuration;
-
-    const totalMilliseconds = sessions.reduce((total, session) => {
-      if (!session.endTime) return total;
-
-      const sessionStart = new Date(session.startTime).getTime();
-      const sessionEnd = new Date(session.endTime).getTime();
-
-      if (
-        Number.isNaN(sessionStart) ||
-        Number.isNaN(sessionEnd) ||
-        sessionEnd <= sessionStart
-      ) {
-        return total;
-      }
-
-      const overlapStart = Math.max(sessionStart, dayStart);
-      const overlapEnd = Math.min(sessionEnd, dayEnd);
-
-      return total + Math.max(0, overlapEnd - overlapStart);
-    }, 0);
-
-    return {
-      label: new Intl.DateTimeFormat("en-IN", {
-        timeZone: "Asia/Kolkata",
-        weekday: "short",
-      }).format(new Date(dayStart)),
-      totalMinutes: Math.floor(totalMilliseconds / 60000),
-    };
-  });
-
-  const weeklyTotal = days.reduce((total, day) => total + day.totalMinutes, 0);
-
-  return {
-    days,
-    weeklyTotal,
-    dailyAverage: Math.floor(weeklyTotal / 7),
-  };
 }
 
 function formatTotalDuration(totalMinutes: number): string {

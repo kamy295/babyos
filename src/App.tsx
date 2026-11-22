@@ -12,7 +12,6 @@ import TaskManager from "./features/tasks/TaskManager";
 import { type Task, type TaskFilter } from "./types/tasks";
 import AskBabyOS from "./features/ask/AskBabyOS";
 import SleepTracker from "./features/sleep/SleepTracker";
-import type { SleepSession } from "./types/sleep";
 import {
   processQuickCapture,
   saveQuickCapture,
@@ -27,6 +26,10 @@ import {
   createSleepEvent,
   completeSleepEvent,
 } from "./features/sleep/sleepApi";
+import {
+  getTodaySleepDuration,
+  mapSleepEventsToSessions,
+} from "./features/sleep/sleepUtils";
 
 const STORAGE_KEY = "babyos:family-notes";
 const TASK_STORAGE_KEY = "babyos:tasks";
@@ -112,41 +115,6 @@ function loadSavedTasks(): Task[] {
   }
 }
 
-function getTodaySleepDuration(sessions: SleepSession[]): number {
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
-  // Start and end of today in Indian Standard Time.
-  const todayStart = new Date(`${today}T00:00:00+05:30`).getTime();
-  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
-
-  const totalMilliseconds = sessions.reduce((total, session) => {
-    if (!session.endTime) return total;
-
-    const sessionStart = new Date(session.startTime).getTime();
-    const sessionEnd = new Date(session.endTime).getTime();
-
-    if (
-      Number.isNaN(sessionStart) ||
-      Number.isNaN(sessionEnd) ||
-      sessionEnd <= sessionStart
-    ) {
-      return total;
-    }
-
-    const overlapStart = Math.max(sessionStart, todayStart);
-    const overlapEnd = Math.min(sessionEnd, todayEnd);
-
-    return total + Math.max(0, overlapEnd - overlapStart);
-  }, 0);
-
-  return Math.floor(totalMilliseconds / 60000);
-}
-
 function formatSleepDuration(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -166,40 +134,6 @@ function loadSavedTheme(): Theme {
   } catch {
     return "light";
   }
-}
-
-function mapSleepEventsToSessions(events: FamilyEvent[]): SleepSession[] {
-  return events
-    .filter(
-      (event) =>
-        event.category === "Sleep" &&
-        event.eventDate !== null &&
-        event.startTime !== null,
-    )
-    .map((event) => {
-      const startTime = new Date(`${event.eventDate}T${event.startTime}+05:30`);
-
-      let endTime: string | null = null;
-
-      if (event.endTime) {
-        const endDate = new Date(`${event.eventDate}T${event.endTime}+05:30`);
-
-        // An end time earlier than the start time means the session
-        // continued into the following day.
-        if (endDate < startTime) {
-          endDate.setTime(endDate.getTime() + 24 * 60 * 60 * 1000);
-        }
-
-        endTime = endDate.toISOString();
-      }
-
-      return {
-        id: event.id,
-        startTime: startTime.toISOString(),
-        endTime,
-      };
-    })
-    .filter((session) => !Number.isNaN(new Date(session.startTime).getTime()));
 }
 
 function App() {
