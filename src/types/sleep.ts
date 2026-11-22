@@ -1,5 +1,5 @@
 export type SleepSession = {
-  id: number;
+  id: string;
   startTime: string;
   endTime: string | null;
 };

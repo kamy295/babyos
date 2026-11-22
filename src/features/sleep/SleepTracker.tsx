@@ -6,7 +6,9 @@ type SleepTrackerProps = {
   sleepSessions: SleepSession[];
   onStartSleep: () => void;
   onEndSleep: () => void;
-  onAddSleepSession: (startTime: string, endTime: string) => void;
+  onAddSleepSession: (startTime: string, endTime: string) => Promise<boolean>;
+  isSleepActionInProgress: boolean;
+  areEventsLoaded: boolean;
 };
 
 function formatTime(value: string): string {
@@ -148,6 +150,8 @@ function SleepTracker({
   onStartSleep,
   onEndSleep,
   onAddSleepSession,
+  areEventsLoaded,
+  isSleepActionInProgress,
 }: SleepTrackerProps) {
   const [showPastSleepForm, setShowPastSleepForm] = useState(false);
   const [startTime, setStartTime] = useState("");
@@ -167,7 +171,9 @@ function SleepTracker({
     1,
   );
 
-  const handlePastSleepSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handlePastSleepSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
 
     if (!startTime || durationHours === "") {
@@ -213,13 +219,18 @@ function SleepTracker({
       return;
     }
 
-    onAddSleepSession(startDate.toISOString(), endDate.toISOString());
+    const saved = await onAddSleepSession(
+      startDate.toISOString(),
+      endDate.toISOString(),
+    );
 
-    setStartTime("");
-    setDurationHours("0");
-    setDurationMinutes("");
-    setFormError("");
-    setShowPastSleepForm(false);
+    if (saved) {
+      setStartTime("");
+      setDurationHours("0");
+      setDurationMinutes("");
+      setFormError("");
+      setShowPastSleepForm(false);
+    }
   };
 
   const [maxDateTime] = useState(() => {
@@ -294,7 +305,11 @@ function SleepTracker({
 
           {formError && <p className="sleep-form-error">{formError}</p>}
 
-          <button type="submit" className="sleep-start-button">
+          <button
+            type="submit"
+            className="sleep-start-button"
+            disabled={isSleepActionInProgress}
+          >
             Save Sleep
           </button>
         </form>
@@ -358,22 +373,26 @@ function SleepTracker({
           <h3>{formatTime(activeSession.startTime)}</h3>
 
           <button
-            type="button"
             className="sleep-end-button"
             onClick={onEndSleep}
+            disabled={!areEventsLoaded || isSleepActionInProgress}
           >
-            End Sleep
+            {isSleepActionInProgress ? "Saving..." : "End Sleep"}
           </button>
         </div>
       ) : (
         <div className="sleep-start-card">
           <p>No active sleep session</p>
           <button
-            type="button"
             className="sleep-start-button"
             onClick={onStartSleep}
+            disabled={!areEventsLoaded || isSleepActionInProgress}
           >
-            Start Sleep
+            {!areEventsLoaded
+              ? "Loading..."
+              : isSleepActionInProgress
+                ? "Starting..."
+                : "Start Sleep"}
           </button>
         </div>
       )}

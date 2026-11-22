@@ -112,3 +112,51 @@ export async function updateBabyEvent(
 
   return data !== null;
 }
+
+export async function createBabyEvent(input: UpdateBabyEventInput) {
+  const familyId = process.env.BABYOS_DEV_FAMILY_ID;
+  const babyId = process.env.BABYOS_DEV_BABY_ID;
+
+  if (!familyId || !babyId) {
+    throw new Error("Development family or baby ID is not configured.");
+  }
+
+  const { data, error } = await supabase
+    .from("baby_events")
+    .insert({
+      family_id: familyId,
+      baby_id: babyId,
+      source_note_id: null,
+      content: input.content,
+      category: input.category,
+      event_date: input.eventDate,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      quantity: input.quantity,
+      unit: input.unit,
+      duration_minutes: input.durationMinutes,
+    })
+    .select(
+      `
+        id,
+        source_note_id,
+        content,
+        category,
+        event_date,
+        start_time,
+        end_time,
+        quantity,
+        unit,
+        duration_minutes,
+        recorded_at,
+        created_at
+      `,
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
