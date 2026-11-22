@@ -11,11 +11,6 @@ export type AiSuggestedEvent = {
   durationMinutes: number | null;
 };
 
-type QuickCaptureResponse = {
-  events: AiSuggestedEvent[];
-  error?: string;
-};
-
 export async function processQuickCapture(
   text: string,
 ): Promise<AiSuggestedEvent[]> {
@@ -27,17 +22,31 @@ export async function processQuickCapture(
     body: JSON.stringify({ text }),
   });
 
-  const data = (await response.json()) as QuickCaptureResponse;
+  const data: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data.error ?? "Unable to process your note.");
+    const error =
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof data.error === "string"
+        ? data.error
+        : "Unable to process your note.";
+
+    throw new Error(error);
   }
 
-  if (!Array.isArray(data.events) || data.events.length === 0) {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("events" in data) ||
+    !Array.isArray(data.events) ||
+    data.events.length === 0
+  ) {
     throw new Error("No events were identified. Please try again.");
   }
 
-  return data.events;
+  return data.events as AiSuggestedEvent[];
 }
 
 export async function saveQuickCapture(
