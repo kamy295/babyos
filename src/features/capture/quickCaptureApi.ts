@@ -11,11 +11,6 @@ export type AiSuggestedEvent = {
   durationMinutes: number | null;
 };
 
-type QuickCaptureResponse = {
-  events: AiSuggestedEvent[];
-  error?: string;
-};
-
 export async function processQuickCapture(
   text: string,
 ): Promise<AiSuggestedEvent[]> {
@@ -27,24 +22,38 @@ export async function processQuickCapture(
     body: JSON.stringify({ text }),
   });
 
-  const data = (await response.json()) as QuickCaptureResponse;
+  const data: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data.error ?? "Unable to process your note.");
+    const error =
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof data.error === "string"
+        ? data.error
+        : "Unable to process your note.";
+
+    throw new Error(error);
   }
 
-  if (!Array.isArray(data.events) || data.events.length === 0) {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("events" in data) ||
+    !Array.isArray(data.events) ||
+    data.events.length === 0
+  ) {
     throw new Error("No events were identified. Please try again.");
   }
 
-  return data.events;
+  return data.events as AiSuggestedEvent[];
 }
 
 export async function saveQuickCapture(
   content: string,
   events: AiSuggestedEvent[],
 ): Promise<void> {
-  const response = await fetch("http://localhost:3000/api/captures/confirm", {
+  const response = await fetch("/api/captures/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -53,7 +62,16 @@ export async function saveQuickCapture(
   });
 
   if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(result?.error ?? "Unable to save your capture.");
+    const result: unknown = await response.json().catch(() => null);
+
+    const error =
+      typeof result === "object" &&
+      result !== null &&
+      "error" in result &&
+      typeof result.error === "string"
+        ? result.error
+        : "Unable to save your capture.";
+
+    throw new Error(error);
   }
 }
