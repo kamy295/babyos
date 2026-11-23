@@ -129,7 +129,7 @@ describe("saveQuickCapture", () => {
     ).resolves.toBeUndefined();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:3000/api/captures/confirm",
+      "/api/captures/confirm",
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,6 +155,22 @@ describe("saveQuickCapture", () => {
     );
 
     await expect(saveQuickCapture("Baby slept", [mockEvent])).rejects.toThrow(
+      "Unable to save your capture.",
+    );
+  });
+
+  it("uses the fallback message when the error response is malformed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: vi.fn().mockResolvedValue({
+          error: { message: "Database error" },
+        }),
+      }),
+    );
+
+    await expect(saveQuickCapture("Baby slept", [])).rejects.toThrow(
       "Unable to save your capture.",
     );
   });

@@ -53,7 +53,7 @@ export async function saveQuickCapture(
   content: string,
   events: AiSuggestedEvent[],
 ): Promise<void> {
-  const response = await fetch("http://localhost:3000/api/captures/confirm", {
+  const response = await fetch("/api/captures/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -62,7 +62,16 @@ export async function saveQuickCapture(
   });
 
   if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(result?.error ?? "Unable to save your capture.");
+    const result: unknown = await response.json().catch(() => null);
+
+    const error =
+      typeof result === "object" &&
+      result !== null &&
+      "error" in result &&
+      typeof result.error === "string"
+        ? result.error
+        : "Unable to save your capture.";
+
+    throw new Error(error);
   }
 }

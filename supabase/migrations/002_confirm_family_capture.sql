@@ -20,12 +20,18 @@ begin
   end if;
 
   -- Validate the event collection.
-  if p_events is null
-     or jsonb_typeof(p_events) <> 'array'
-     or jsonb_array_length(p_events) < 1
-     or jsonb_array_length(p_events) > 20 then
-    raise exception 'Expected between 1 and 20 events';
-  end if;
+ if p_events is null then
+  raise exception 'Events cannot be null';
+end if;
+
+if jsonb_typeof(p_events) <> 'array' then
+  raise exception 'Events must be a JSON array';
+end if;
+
+if jsonb_array_length(p_events) < 1
+   or jsonb_array_length(p_events) > 20 then
+  raise exception 'Expected between 1 and 20 events';
+end if;
 
   -- Save the original note.
   insert into public.family_notes (

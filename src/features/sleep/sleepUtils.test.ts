@@ -69,6 +69,7 @@ describe("mapSleepEventsToSessions", () => {
       createEvent({ eventDate: null }),
       createEvent({ id: "event-2", eventDate: "invalid-date" }),
       createEvent({ id: "event-3", endTime: "invalid-time" }),
+      createEvent({ id: "event-4", startTime: null }),
     ]);
 
     expect(result).toEqual([]);

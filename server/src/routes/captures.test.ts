@@ -185,4 +185,46 @@ describe("POST /api/captures/confirm", () => {
     expect(response.status).toBe(400);
     expect(confirmFamilyCapture).not.toHaveBeenCalled();
   });
+
+  it("rejects an invalid event date", async () => {
+    const response = await app.request("/api/captures/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        events: [{ ...validEvent, eventDate: "not-a-date" }],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(confirmFamilyCapture).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid event time", async () => {
+    const response = await app.request("/api/captures/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        events: [{ ...validEvent, startTime: "not-a-time" }],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(confirmFamilyCapture).not.toHaveBeenCalled();
+  });
+
+  it("rejects a negative quantity", async () => {
+    const response = await app.request("/api/captures/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        events: [{ ...validEvent, quantity: -10 }],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(confirmFamilyCapture).not.toHaveBeenCalled();
+  });
 });

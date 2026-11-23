@@ -11,8 +11,6 @@ import aiRoutes from "./routes/ai";
 
 const app = new Hono();
 
-console.log("Gemini API key configured:", Boolean(process.env.GEMINI_API_KEY));
-
 app.use(
   "/api/*",
   cors({
