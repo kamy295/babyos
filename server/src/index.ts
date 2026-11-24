@@ -8,6 +8,7 @@ import captures from "./routes/captures";
 import { cors } from "hono/cors";
 import events from "./routes/events";
 import aiRoutes from "./routes/ai";
+import sleepSessions from "./routes/sleepSessions";
 
 const app = new Hono();
 
@@ -30,6 +31,7 @@ app.get("/api/health", (c) => {
 app.route("/api/notes", notes);
 app.route("/api/captures", captures);
 app.route("/api/events", events);
+app.route("/api/sleep-sessions", sleepSessions);
 app.route("/api/ai", aiRoutes);
 
 app.get("/api/health/database", async (c) => {

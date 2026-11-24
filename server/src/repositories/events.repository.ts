@@ -1,6 +1,23 @@
 import { supabase } from "../lib/supabase";
 
-export async function getBabyEvents() {
+const BABY_EVENT_COLUMNS = `
+  id,
+  source_note_id,
+  is_tracker_session,
+  content,
+  category,
+  event_date,
+  end_date,
+  start_time,
+  end_time,
+  quantity,
+  unit,
+  duration_minutes,
+  recorded_at,
+  created_at
+`;
+
+export async function getBabyEvents(category?: string) {
   const familyId = process.env.BABYOS_DEV_FAMILY_ID;
   const babyId = process.env.BABYOS_DEV_BABY_ID;
 
@@ -8,15 +25,17 @@ export async function getBabyEvents() {
     throw new Error("Development family or baby ID is not configured.");
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("baby_events")
     .select(
       `
         id,
         source_note_id,
+        is_tracker_session,
         content,
         category,
         event_date,
+        end_date,
         start_time,
         end_time,
         quantity,
@@ -27,14 +46,55 @@ export async function getBabyEvents() {
       `,
     )
     .eq("family_id", familyId)
-    .eq("baby_id", babyId)
-    .order("created_at", { ascending: false });
+    .eq("baby_id", babyId);
+
+  if (category && category !== "All") {
+    query = query.eq("category", category);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     throw error;
   }
 
   return data;
+}
+
+export async function getBabyEventsPage(
+  page: number,
+  pageSize: number,
+  category?: string,
+) {
+  const familyId = process.env.BABYOS_DEV_FAMILY_ID;
+  const babyId = process.env.BABYOS_DEV_BABY_ID;
+
+  if (!familyId || !babyId) {
+    throw new Error("Development family or baby ID is not configured.");
+  }
+
+  const offset = (page - 1) * pageSize;
+  let query = supabase
+    .from("baby_events")
+    .select(BABY_EVENT_COLUMNS, { count: "exact" })
+    .eq("family_id", familyId)
+    .eq("baby_id", babyId);
+
+  if (category && category !== "All") {
+    query = query.eq("category", category);
+  }
+
+  const { data, count, error } = await query
+    .order("event_date", { ascending: false, nullsFirst: false })
+    .order("start_time", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false })
+    .range(offset, offset + pageSize - 1);
+
+  if (error) {
+    throw error;
+  }
+
+  return { events: data, totalRecords: count ?? 0 };
 }
 
 export async function deleteBabyEvent(eventId: string) {
@@ -103,6 +163,7 @@ export async function updateBabyEvent(
     .eq("id", eventId)
     .eq("family_id", familyId)
     .eq("baby_id", babyId)
+    .eq("is_tracker_session", false)
     .select("id")
     .maybeSingle();
 
@@ -140,9 +201,11 @@ export async function createBabyEvent(input: UpdateBabyEventInput) {
       `
         id,
         source_note_id,
+        is_tracker_session,
         content,
         category,
         event_date,
+        end_date,
         start_time,
         end_time,
         quantity,

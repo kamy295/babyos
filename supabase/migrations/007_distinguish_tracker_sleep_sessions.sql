@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE public.baby_events
+ADD COLUMN is_tracker_session BOOLEAN NOT NULL DEFAULT FALSE,
+ADD COLUMN end_date DATE;
+
+COMMIT;

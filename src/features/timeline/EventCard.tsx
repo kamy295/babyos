@@ -66,13 +66,15 @@ function EventCard({ event, onDelete, onEdit, isDeleting }: EventCardProps) {
           </>
         ) : (
           <>
-            <button
-              type="button"
-              className="action-button"
-              onClick={() => onEdit(event)}
-            >
-              Edit
-            </button>
+            {!event.isTrackerSession && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => onEdit(event)}
+              >
+                Edit
+              </button>
+            )}
 
             <button
               className="delete-button"

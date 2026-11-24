@@ -49,6 +49,24 @@ describe("POST /api/captures/confirm", () => {
     expect(confirmFamilyCapture).toHaveBeenCalledWith(validPayload);
   });
 
+  it("ignores a forged tracker marker on Quick Capture events", async () => {
+    vi.mocked(confirmFamilyCapture).mockResolvedValue({
+      id: "capture-1",
+    });
+
+    const response = await app.request("/api/captures/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...validPayload,
+        events: [{ ...validEvent, is_tracker_session: true }],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(confirmFamilyCapture).toHaveBeenCalledWith(validPayload);
+  });
+
   it("rejects empty content", async () => {
     const response = await app.request("/api/captures/confirm", {
       method: "POST",

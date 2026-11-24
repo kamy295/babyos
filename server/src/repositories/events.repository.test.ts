@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   eq: vi.fn(),
   order: vi.fn(),
+  range: vi.fn(),
   maybeSingle: vi.fn(),
   single: vi.fn(),
   result: null as unknown,
@@ -23,6 +24,7 @@ import {
   createBabyEvent,
   deleteBabyEvent,
   getBabyEvents,
+  getBabyEventsPage,
   updateBabyEvent,
 } from "./events.repository";
 
@@ -33,6 +35,7 @@ const queryBuilder = {
   insert: mocks.insert,
   eq: mocks.eq,
   order: mocks.order,
+  range: mocks.range,
   maybeSingle: mocks.maybeSingle,
   single: mocks.single,
 
@@ -65,6 +68,7 @@ beforeEach(() => {
   mocks.insert.mockReturnValue(queryBuilder);
   mocks.eq.mockReturnValue(queryBuilder);
   mocks.order.mockReturnValue(queryBuilder);
+  mocks.range.mockReturnValue(queryBuilder);
   mocks.maybeSingle.mockReturnValue(queryBuilder);
   mocks.single.mockReturnValue(queryBuilder);
 
@@ -87,6 +91,7 @@ describe("getBabyEvents", () => {
 
     expect(mocks.from).toHaveBeenCalledWith("baby_events");
     expect(mocks.select).toHaveBeenCalledOnce();
+    expect(mocks.select.mock.calls[0]?.[0]).toContain("end_date");
     expect(mocks.eq).toHaveBeenNthCalledWith(1, "family_id", "test-family-id");
     expect(mocks.eq).toHaveBeenNthCalledWith(2, "baby_id", "test-baby-id");
     expect(mocks.order).toHaveBeenCalledWith("created_at", {
@@ -109,6 +114,72 @@ describe("getBabyEvents", () => {
     mocks.result = { data: null, error };
 
     await expect(getBabyEvents()).rejects.toBe(error);
+  });
+});
+
+describe("getBabyEventsPage", () => {
+  it.each([
+    [1, 10, 0, 9],
+    [2, 10, 10, 19],
+    [3, 5, 10, 14],
+    [5, 5, 20, 24],
+  ])(
+    "requests the expected offset range for page %i",
+    async (page, pageSize, from, to) => {
+      const data = [{ id: `page-${page}-event` }];
+      mocks.result = { data, count: 21, error: null };
+
+      await expect(getBabyEventsPage(page, pageSize, "Sleep")).resolves.toEqual(
+        { events: data, totalRecords: 21 },
+      );
+
+      expect(mocks.select).toHaveBeenCalledWith(expect.any(String), {
+        count: "exact",
+      });
+      expect(mocks.eq).toHaveBeenNthCalledWith(3, "category", "Sleep");
+      expect(mocks.order).toHaveBeenNthCalledWith(1, "event_date", {
+        ascending: false,
+        nullsFirst: false,
+      });
+      expect(mocks.order).toHaveBeenNthCalledWith(2, "start_time", {
+        ascending: false,
+        nullsFirst: false,
+      });
+      expect(mocks.order).toHaveBeenNthCalledWith(3, "id", {
+        ascending: false,
+      });
+      expect(mocks.range).toHaveBeenCalledWith(from, to);
+      expect(mocks.eq.mock.invocationCallOrder[2]).toBeLessThan(
+        mocks.range.mock.invocationCallOrder[0],
+      );
+    },
+  );
+
+  it("returns zero matching records for an empty page and does not filter All", async () => {
+    mocks.result = { data: [], count: 0, error: null };
+
+    await expect(getBabyEventsPage(1, 10, "All")).resolves.toEqual({
+      events: [],
+      totalRecords: 0,
+    });
+
+    expect(mocks.eq).toHaveBeenCalledTimes(2);
+    expect(mocks.range).toHaveBeenCalledWith(0, 9);
+  });
+});
+
+describe("getBabyEvents category filter", () => {
+  it("applies category filtering before the unpaginated fetch", async () => {
+    mocks.result = { data: [{ id: "sleep-event" }], error: null };
+
+    await expect(getBabyEvents("Sleep")).resolves.toEqual([
+      { id: "sleep-event" },
+    ]);
+
+    expect(mocks.eq).toHaveBeenNthCalledWith(3, "category", "Sleep");
+    expect(mocks.order).toHaveBeenCalledWith("created_at", {
+      ascending: false,
+    });
   });
 });
 
@@ -156,7 +227,8 @@ describe("updateBabyEvent", () => {
       duration_minutes: eventInput.durationMinutes,
     });
 
-    expect(mocks.eq).toHaveBeenCalledTimes(3);
+    expect(mocks.eq).toHaveBeenCalledTimes(4);
+    expect(mocks.eq).toHaveBeenNthCalledWith(4, "is_tracker_session", false);
     expect(mocks.maybeSingle).toHaveBeenCalledOnce();
   });
 
@@ -197,6 +269,7 @@ describe("createBabyEvent", () => {
       unit: eventInput.unit,
       duration_minutes: eventInput.durationMinutes,
     });
+    expect(mocks.select.mock.calls[0]?.[0]).toContain("end_date");
 
     expect(mocks.single).toHaveBeenCalledOnce();
   });

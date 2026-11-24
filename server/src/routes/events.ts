@@ -4,12 +4,46 @@ import {
   createBabyEvent,
   deleteBabyEvent,
   getBabyEvents,
+  getBabyEventsPage,
   updateBabyEvent,
 } from "../repositories/events.repository";
 
 const events = new Hono();
 
 const uuidSchema = z.string().uuid();
+const PAGE_SIZES = [5, 10, 15, 20, 50] as const;
+const pageQuerySchema = z
+  .object({
+    page: z.coerce.number().int().safe().positive().default(1),
+    pageSize: z
+      .coerce
+      .number()
+      .int()
+      .refine((value) => PAGE_SIZES.some((size) => size === value), {
+        message: "Unsupported page size.",
+      })
+      .default(10),
+    category: z
+      .enum([
+        "All",
+        "Sleep",
+        "Feeding",
+        "Activity",
+        "Health",
+        "Milestone",
+        "General",
+      ])
+      .optional(),
+  })
+  .superRefine(({ page, pageSize }, context) => {
+    if (page > Math.floor(Number.MAX_SAFE_INTEGER / pageSize)) {
+      context.addIssue({
+        code: "custom",
+        path: ["page"],
+        message: "Page number is too large.",
+      });
+    }
+  });
 
 const eventSchema = z.object({
   content: z.string().trim().min(1).max(1000),
@@ -32,6 +66,45 @@ const eventSchema = z.object({
 // GET all baby events
 events.get("/", async (c) => {
   try {
+    const query = c.req.query();
+    const isPaginated = "page" in query || "pageSize" in query;
+
+    if (!isPaginated && "category" in query) {
+      const parsedCategory = pageQuerySchema.shape.category.safeParse(
+        query.category,
+      );
+      if (!parsedCategory.success) {
+        return c.json({ error: "Invalid timeline category." }, 400);
+      }
+
+      const result = await getBabyEvents(parsedCategory.data);
+      return c.json({ events: result });
+    }
+
+    if (isPaginated) {
+      const parsedQuery = pageQuerySchema.safeParse(query);
+      if (!parsedQuery.success) {
+        return c.json(
+          { error: "Invalid timeline pagination parameters." },
+          400,
+        );
+      }
+
+      const { page, pageSize, category } = parsedQuery.data;
+      const result = await getBabyEventsPage(page, pageSize, category);
+      const totalPages = Math.ceil(result.totalRecords / pageSize);
+
+      return c.json({
+        events: result.events,
+        pagination: {
+          page,
+          pageSize,
+          totalRecords: result.totalRecords,
+          totalPages,
+        },
+      });
+    }
+
     const result = await getBabyEvents();
     return c.json({ events: result });
   } catch (error) {
