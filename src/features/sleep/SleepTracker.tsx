@@ -251,26 +251,36 @@ function SleepTracker({
         </div>
 
         <div className="sleep-weekly-chart">
-          {weeklySummary.days.map((day, index) => (
-            <div className="sleep-weekly-day" key={`${day.label}-${index}`}>
-              <span className="sleep-weekly-bar-value">
-                {day.totalMinutes > 0
-                  ? formatTotalDuration(day.totalMinutes)
-                  : ""}
-              </span>
+          {weeklySummary.weeklyTotal === 0 ? (
+            <p className="sleep-weekly-empty">
+              No sleep recorded in the last 7 days.
+            </p>
+          ) : (
+            weeklySummary.days.map((day, index) => (
+              <div
+                className={`sleep-weekly-day ${day.isToday ? "is-today" : ""}`}
+                key={`${day.label}-${index}`}
+              >
+                <span className="sleep-weekly-bar-value">
+                  {day.totalMinutes > 0
+                    ? formatTotalDuration(day.totalMinutes)
+                    : ""}
+                </span>
 
-              <div className="sleep-weekly-bar-container">
-                <div
-                  className="sleep-weekly-bar"
-                  style={{
-                    height: `${(day.totalMinutes / maxDailySleep) * 100}%`,
-                  }}
-                />
+                <div className="sleep-weekly-bar-container">
+                  <div
+                    className="sleep-weekly-bar"
+                    style={{
+                      height: `${(day.totalMinutes / maxDailySleep) * 100}%`,
+                    }}
+                  />
+                </div>
+
+                <span className="sleep-weekly-day-label">{day.label}</span>
+                <span className="sleep-weekly-date">{day.dateLabel}</span>
               </div>
-
-              <span className="sleep-weekly-day-label">{day.label}</span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

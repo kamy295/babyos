@@ -297,6 +297,50 @@
   font-size: 12px;
 }
 
+.sleep-weekly-day.is-today .sleep-weekly-bar {
+  background: var(--action-color);
+}
+
+.sleep-weekly-day.is-today .sleep-weekly-day-label {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.sleep-weekly-date {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.sleep-weekly-day.is-today .sleep-weekly-date {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.sleep-weekly-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 400px) {
+  .sleep-weekly-chart {
+    gap: 5px;
+  }
+
+  .sleep-weekly-bar-value {
+    font-size: 9px;
+  }
+
+  .sleep-weekly-day-label {
+    font-size: 11px;
+  }
+}
+
 /* Responsive styles */
 
 @media (max-width: 600px) {

@@ -118,6 +118,13 @@ export function getWeeklySleepSummary(
         timeZone: "Asia/Kolkata",
         weekday: "short",
       }).format(new Date(dayStart)),
+
+      dateLabel: new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "numeric",
+      }).format(new Date(dayStart)),
+
+      isToday: index === 6,
       totalMinutes: Math.floor(totalMilliseconds / 60000),
     };
   });
