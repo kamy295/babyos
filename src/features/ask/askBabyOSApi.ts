@@ -1,4 +1,3 @@
-import type { FamilyNote } from "../../types/notes";
 import type { Task } from "../../types/tasks";
 
 type AskBabyOSResponse = {
@@ -8,7 +7,6 @@ type AskBabyOSResponse = {
 
 export async function askBabyOS(
   question: string,
-  notes: FamilyNote[],
   tasks: Task[],
 ): Promise<string> {
   const response = await fetch("/api/ai/ask", {
@@ -18,7 +16,6 @@ export async function askBabyOS(
     },
     body: JSON.stringify({
       question,
-      notes,
       tasks,
     }),
   });

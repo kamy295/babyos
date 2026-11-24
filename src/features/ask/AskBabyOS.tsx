@@ -1,11 +1,9 @@
 import { useState } from "react";
-import type { FamilyNote } from "../../types/notes";
 import type { Task } from "../../types/tasks";
 import { askBabyOS } from "./askBabyOSApi";
 import "./AskBabyOS.css";
 
 type AskBabyOSProps = {
-  notes: FamilyNote[];
   tasks: Task[];
 };
 
@@ -16,7 +14,7 @@ const SUGGESTED_QUESTIONS = [
   "Show my recent notes",
 ];
 
-function AskBabyOS({ notes, tasks }: AskBabyOSProps) {
+function AskBabyOS({ tasks }: AskBabyOSProps) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +31,7 @@ function AskBabyOS({ notes, tasks }: AskBabyOSProps) {
     setAnswer("");
 
     try {
-      const result = await askBabyOS(trimmedQuestion, notes, tasks);
+      const result = await askBabyOS(trimmedQuestion, tasks);
       setAnswer(result);
     } catch (error) {
       setError(

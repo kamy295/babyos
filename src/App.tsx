@@ -757,7 +757,7 @@ function App() {
       </div>
 
       <div id="ask-babyos" className="nav-section">
-        <AskBabyOS notes={savedNotes} tasks={tasks} />
+        <AskBabyOS tasks={tasks} />
       </div>
 
       <div id="tasks" className="nav-section">

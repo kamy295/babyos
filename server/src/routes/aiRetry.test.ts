@@ -1,3 +1,11 @@
+const { getBabyEvents, getFamilyNotes } = vi.hoisted(() => ({
+  getBabyEvents: vi.fn(),
+  getFamilyNotes: vi.fn(),
+}));
+
+vi.mock("../repositories/notes.repository", () => ({ getFamilyNotes }));
+vi.mock("../repositories/events.repository", () => ({ getBabyEvents }));
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { generateWithRetry } from "./ai";
 
