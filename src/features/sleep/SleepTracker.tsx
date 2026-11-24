@@ -1,6 +1,10 @@
 import { useState } from "react";
 import type { SleepSession } from "../../types/sleep";
-import { getTodaySleepDuration, getWeeklySleepSummary } from "./sleepUtils";
+import {
+  createPastSleepInterval,
+  getTodaySleepDuration,
+  getWeeklySleepSummary,
+} from "./sleepUtils";
 import "./SleepTracker.css";
 
 type SleepTrackerProps = {
@@ -88,53 +92,18 @@ function SleepTracker({
   ) => {
     event.preventDefault();
 
-    if (!startTime || durationHours === "") {
-      setFormError("Please enter the sleep start time and duration.");
-      return;
-    }
-
-    const startDate = new Date(startTime);
-    const hours = Number(durationHours);
-    const minutes = Number(durationMinutes || 0);
-
-    if (
-      Number.isNaN(startDate.getTime()) ||
-      !Number.isInteger(hours) ||
-      !Number.isInteger(minutes) ||
-      hours < 0 ||
-      hours > 23 ||
-      minutes < 0 ||
-      minutes > 59
-    ) {
-      setFormError("Please enter valid sleep details.");
-      return;
-    }
-
-    const totalMinutes = hours * 60 + minutes;
-
-    if (totalMinutes <= 0) {
-      setFormError("Sleep duration must be greater than zero.");
-      return;
-    }
-
-    const now = new Date();
-
-    if (startDate > now) {
-      setFormError("Sleep start time cannot be in the future.");
-      return;
-    }
-
-    const endDate = new Date(startDate.getTime() + totalMinutes * 60 * 1000);
-
-    if (endDate > now) {
-      setFormError("Calculated wake-up time cannot be in the future.");
-      return;
-    }
-
-    const saved = await onAddSleepSession(
-      startDate.toISOString(),
-      endDate.toISOString(),
+    const interval = createPastSleepInterval(
+      startTime,
+      durationHours,
+      durationMinutes,
     );
+
+    if (interval.ok === false) {
+      setFormError(interval.error);
+      return;
+    }
+
+    const saved = await onAddSleepSession(interval.startTime, interval.endTime);
 
     if (saved) {
       setStartTime("");
@@ -195,7 +164,7 @@ function SleepTracker({
               <input
                 type="number"
                 min="0"
-                max="23"
+                step="1"
                 value={durationHours}
                 onChange={(event) => setDurationHours(event.target.value)}
                 required

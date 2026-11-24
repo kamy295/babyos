@@ -1,12 +1,22 @@
 import "./App.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   type FamilyNote,
   type FamilyEvent,
   type NoteCategory,
-  type TimelineFilter,
 } from "./types/notes";
 import Timeline from "./features/timeline/Timeline";
+import {
+  buildTimelinePageUrl,
+  createTimelinePageLoader,
+  DEFAULT_TIMELINE_PAGE_SIZE,
+  type TimelinePagination,
+} from "./features/timeline/timelineApi";
+import {
+  getTimelineFallbackPage,
+  INITIAL_TIMELINE_VIEW_STATE,
+  reduceTimelineView,
+} from "./features/timeline/timelineState";
 import QuickCapture from "./features/capture/QuickCapture";
 import TaskManager from "./features/tasks/TaskManager";
 import { type Task, type TaskFilter } from "./types/tasks";
@@ -40,9 +50,11 @@ const THEME_STORAGE_KEY = "babyos:theme";
 type ApiEvent = {
   id: string;
   source_note_id: string;
+  is_tracker_session: boolean;
   content: string;
   category: NoteCategory;
   event_date: string | null;
+  end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   quantity: number | null;
@@ -55,6 +67,25 @@ type ApiEvent = {
 type EventsApiResponse = {
   events: ApiEvent[];
 };
+
+function mapApiEvent(event: ApiEvent): FamilyEvent {
+  return {
+    id: event.id,
+    sourceNoteId: event.source_note_id,
+    isTrackerSession: event.is_tracker_session,
+    content: event.content,
+    category: event.category,
+    eventDate: event.event_date,
+    endDate: event.end_date,
+    startTime: event.start_time,
+    endTime: event.end_time,
+    quantity: event.quantity,
+    unit: event.unit,
+    durationMinutes: event.duration_minutes,
+    recordedAt: event.recorded_at,
+    createdAt: event.created_at,
+  };
+}
 
 function isFamilyNote(value: unknown): value is FamilyNote {
   if (typeof value !== "object" || value === null) {
@@ -145,7 +176,16 @@ function App() {
   const [isProcessingCapture, setIsProcessingCapture] = useState(false);
   const [captureError, setCaptureError] = useState("");
   const [savedNotes] = useState<FamilyNote[]>(loadSavedNotes);
-  const [activeFilter, setActiveFilter] = useState<TimelineFilter>("All");
+  const [timelineView, dispatchTimelineView] = useReducer(
+    reduceTimelineView,
+    INITIAL_TIMELINE_VIEW_STATE,
+  );
+  const {
+    category: activeFilter,
+    page: timelinePage,
+    pageSize: timelinePageSize,
+    refreshVersion: timelineRefreshVersion,
+  } = timelineView;
 
   const [tasks, setTasks] = useState<Task[]>(loadSavedTasks);
   const [taskTitle, setTaskTitle] = useState("");
@@ -158,6 +198,27 @@ function App() {
   const [events, setEvents] = useState<FamilyEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState("");
+  const [timelineEvents, setTimelineEvents] = useState<FamilyEvent[]>([]);
+  const [timelinePagination, setTimelinePagination] =
+    useState<TimelinePagination>({
+      page: 1,
+      pageSize: DEFAULT_TIMELINE_PAGE_SIZE,
+      totalRecords: 0,
+      totalPages: 0,
+    });
+  const [timelineRequestState, setTimelineRequestState] = useState<{
+    key: string;
+    status: "success" | "error";
+    message?: string;
+  } | null>(null);
+  const timelinePageLoader = useRef(createTimelinePageLoader());
+  const timelineQueryKey = `${activeFilter}:${timelinePage}:${timelinePageSize}:${timelineRefreshVersion}`;
+  const isLoadingTimeline = timelineRequestState?.key !== timelineQueryKey;
+  const timelineError =
+    timelineRequestState?.key === timelineQueryKey &&
+    timelineRequestState.status === "error"
+      ? (timelineRequestState.message ?? "Unable to load timeline events.")
+      : "";
 
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<FamilyEvent | null>(null);
@@ -168,6 +229,10 @@ function App() {
   const [areEventsLoaded, setAreEventsLoaded] = useState(false);
 
   const sleepSessions = mapSleepEventsToSessions(events);
+
+  const refreshTimeline = useCallback(() => {
+    dispatchTimelineView({ type: "refresh" });
+  }, []);
 
   const todaySleepMinutes = getTodaySleepDuration(sleepSessions);
   const { notify } = useNotification();
@@ -221,6 +286,7 @@ function App() {
       await saveQuickCapture(draftOriginalNote, draftEvents);
 
       await fetchEvents();
+      refreshTimeline();
 
       setDraftEvents([]);
       setDraftOriginalNote("");
@@ -290,6 +356,7 @@ function App() {
       }
 
       await fetchEvents();
+      refreshTimeline();
 
       notify({
         type: "success",
@@ -334,6 +401,7 @@ function App() {
       }
 
       await fetchEvents();
+      refreshTimeline();
       setEditingEvent(null);
 
       notify({
@@ -462,6 +530,7 @@ function App() {
     try {
       await createSleepEvent(new Date().toISOString());
       await fetchEvents();
+      refreshTimeline();
 
       notify({
         type: "success",
@@ -493,6 +562,7 @@ function App() {
       await completeSleepEvent(activeSleepSession, new Date().toISOString());
 
       await fetchEvents();
+      refreshTimeline();
 
       notify({
         type: "success",
@@ -526,6 +596,7 @@ function App() {
     try {
       await createSleepEvent(startTime, endTime);
       await fetchEvents();
+      refreshTimeline();
 
       notify({
         type: "success",
@@ -588,9 +659,12 @@ function App() {
       setEventsError("");
 
       try {
-        const response = await fetch("http://localhost:3000/api/events", {
-          signal,
-        });
+        const response = await fetch(
+          "http://localhost:3000/api/events?category=Sleep",
+          {
+            signal,
+          },
+        );
 
         if (!response.ok) {
           throw new Error("Unable to load timeline events.");
@@ -598,20 +672,7 @@ function App() {
 
         const result: EventsApiResponse = await response.json();
 
-        const mappedEvents: FamilyEvent[] = result.events.map((event) => ({
-          id: event.id,
-          sourceNoteId: event.source_note_id,
-          content: event.content,
-          category: event.category,
-          eventDate: event.event_date,
-          startTime: event.start_time,
-          endTime: event.end_time,
-          quantity: event.quantity,
-          unit: event.unit,
-          durationMinutes: event.duration_minutes,
-          recordedAt: event.recorded_at,
-          createdAt: event.created_at,
-        }));
+        const mappedEvents = result.events.map(mapApiEvent);
 
         setEvents(mappedEvents);
         setAreEventsLoaded(true);
@@ -644,6 +705,60 @@ function App() {
 
     return () => controller.abort();
   }, [fetchEvents]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const url = buildTimelinePageUrl(
+      timelinePage,
+      timelinePageSize,
+      activeFilter,
+    );
+
+    const loadTimelinePage = timelinePageLoader.current;
+    void loadTimelinePage<ApiEvent>(url, controller.signal)
+      .then((result) => {
+        if (result.status === "stale") return;
+
+        const { pagination } = result.data;
+        const validPage = getTimelineFallbackPage(
+          timelinePage,
+          pagination.totalPages,
+          pagination.totalRecords,
+          result.data.events.length,
+        );
+        if (validPage !== null) {
+          setTimelinePagination({ ...pagination, page: validPage });
+          dispatchTimelineView({
+            type: "page-clamped",
+            page: validPage,
+          });
+          return;
+        }
+
+        setTimelineEvents(result.data.events.map(mapApiEvent));
+        setTimelinePagination(pagination);
+        setTimelineRequestState({ key: timelineQueryKey, status: "success" });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setTimelineRequestState({
+          key: timelineQueryKey,
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Something went wrong while loading the timeline.",
+        });
+      });
+
+    return () => controller.abort();
+  }, [
+    activeFilter,
+    timelinePage,
+    timelinePageSize,
+    timelineRefreshVersion,
+    timelineQueryKey,
+  ]);
 
   return (
     <main className="app">
@@ -791,9 +906,31 @@ function App() {
         ) : (
           <>
             <Timeline
-              events={events}
+              events={timelineEvents}
               activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
+              onFilterChange={(category) => {
+                if (category !== activeFilter) {
+                  setTimelinePagination((current) => ({ ...current, page: 1 }));
+                }
+                dispatchTimelineView({ type: "category-changed", category });
+              }}
+              pagination={timelinePagination}
+              pageSize={timelinePageSize}
+              isLoading={isLoadingTimeline}
+              error={timelineError}
+              onPageChange={(page) => {
+                dispatchTimelineView({ type: "page-changed", page });
+                setTimelinePagination((current) => ({ ...current, page }));
+              }}
+              onPageSizeChange={(pageSize) => {
+                dispatchTimelineView({ type: "page-size-changed", pageSize });
+                setTimelinePagination((current) => ({
+                  ...current,
+                  page: 1,
+                  pageSize,
+                }));
+              }}
+              onRetry={refreshTimeline}
               onDeleteEvent={handleDeleteEvent}
               deletingEventId={deletingEventId}
               onEditEvent={setEditingEvent}

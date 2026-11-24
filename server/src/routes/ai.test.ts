@@ -48,6 +48,7 @@ const savedEvents = [
     content: "Dhruv slept for 90 minutes",
     category: "Sleep",
     event_date: "2026-11-23",
+    end_date: "2026-11-23",
     start_time: "13:00:00",
     end_time: "14:30:00",
     quantity: null,
@@ -62,6 +63,7 @@ const savedEvents = [
     content: "Feeding amount not recorded",
     category: "Feeding",
     event_date: null,
+    end_date: null,
     start_time: null,
     end_time: null,
     quantity: null,
@@ -241,6 +243,7 @@ describe("POST /api/ai/ask", () => {
     expect(prompt).toContain('"sourceNoteId":"note-uuid-1"');
     expect(prompt).toContain('"sourceNoteId":null');
     expect(prompt).toContain('"eventDate":"2026-11-23"');
+    expect(prompt).toContain('"endDate":"2026-11-23"');
     expect(prompt).toContain('"startTime":"13:00:00"');
     expect(prompt).toContain('"durationMinutes":90');
     expect(prompt).toContain('"recordedAt":"2026-11-23T15:00:00.000Z"');

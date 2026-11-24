@@ -16,10 +16,12 @@ export type FamilyNote = {
 export type FamilyEvent = {
   id: string;
   sourceNoteId: string;
+  isTrackerSession: boolean;
   content: string;
   category: NoteCategory;
 
   eventDate: string | null;
+  endDate: string | null;
   startTime: string | null;
   endTime: string | null;
 
