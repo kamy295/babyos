@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { optionalMediaUrlSchema } from "../schemas/mediaUrl";
 import {
   createBabyEvent,
   deleteBabyEvent,
@@ -61,6 +62,11 @@ const eventSchema = z.object({
   quantity: z.number().nullable(),
   unit: z.string().nullable(),
   durationMinutes: z.number().int().nonnegative().nullable(),
+  mediaUrl: optionalMediaUrlSchema,
+});
+
+const createEventSchema = eventSchema.extend({
+  eventDate: z.union([z.iso.date(), z.literal(""), z.null()]).optional(),
 });
 
 // GET all baby events
@@ -116,7 +122,7 @@ events.get("/", async (c) => {
 // CREATE a baby event
 events.post("/", async (c) => {
   const body = await c.req.json().catch(() => null);
-  const parsedBody = eventSchema.safeParse(body);
+  const parsedBody = createEventSchema.safeParse(body);
 
   if (!parsedBody.success) {
     return c.json(

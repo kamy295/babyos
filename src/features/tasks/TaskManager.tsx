@@ -1,8 +1,14 @@
 import { TASK_FILTERS, type Task, type TaskFilter } from "../../types/tasks";
+import { getTaskDueDateDisplay } from "./taskDateUtils";
 import "./TaskManager.css";
 
 type TaskManagerProps = {
   tasks: Task[];
+  isLoading: boolean;
+  isSaving: boolean;
+  canManageTasks: boolean;
+  error: string;
+  onRetry: () => void;
   taskTitle: string;
   taskDueDate: string;
   activeFilter: TaskFilter;
@@ -10,8 +16,8 @@ type TaskManagerProps = {
   onTaskDueDateChange: (value: string) => void;
   onAddTask: () => void;
   onFilterChange: (filter: TaskFilter) => void;
-  onToggleComplete: (id: number) => void;
-  editingTaskId: number | null;
+  onToggleComplete: (id: string) => void;
+  editingTaskId: string | null;
   editTaskTitle: string;
   editTaskDueDate: string;
   onEditRequest: (task: Task) => void;
@@ -19,11 +25,16 @@ type TaskManagerProps = {
   onEditDueDateChange: (value: string) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 };
 
 function TaskManager({
   tasks,
+  isLoading,
+  isSaving,
+  canManageTasks,
+  error,
+  onRetry,
   taskTitle,
   taskDueDate,
   activeFilter,
@@ -59,12 +70,22 @@ function TaskManager({
         <span>{tasks.filter((task) => !task.completed).length} pending</span>
       </div>
 
+      {error && (
+        <div className="task-error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={onRetry}>
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="task-form">
         <input
           type="text"
           value={taskTitle}
           onChange={(event) => onTaskTitleChange(event.target.value)}
           placeholder="E.g. Buy baby wipes"
+          disabled={isLoading || isSaving || !canManageTasks}
         />
 
         <input
@@ -72,10 +93,15 @@ function TaskManager({
           value={taskDueDate}
           onChange={(event) => onTaskDueDateChange(event.target.value)}
           aria-label="Task due date"
+          disabled={isLoading || isSaving || !canManageTasks}
         />
 
-        <button type="button" onClick={onAddTask} disabled={!taskTitle.trim()}>
-          + Add task
+        <button
+          type="button"
+          onClick={onAddTask}
+          disabled={!taskTitle.trim() || isLoading || isSaving || !canManageTasks}
+        >
+          {isSaving ? "Saving..." : "+ Add task"}
         </button>
       </div>
 
@@ -92,11 +118,21 @@ function TaskManager({
         ))}
       </div>
 
-      {filteredTasks.length === 0 ? (
+      {isLoading ? (
+        <p role="status" className="empty-state">
+          Loading tasks...
+        </p>
+      ) : filteredTasks.length === 0 && error && tasks.length === 0 ? null : filteredTasks.length === 0 ? (
         <p className="empty-state">No tasks here yet.</p>
       ) : (
         <div className="task-list">
-          {filteredTasks.map((task) => (
+          {filteredTasks.map((task) => {
+            const dueDateDisplay = getTaskDueDateDisplay(
+              task.dueDate,
+              task.completed,
+            );
+
+            return (
             <article className="task-item" key={task.id}>
               {editingTaskId === task.id ? (
                 <div className="task-edit-form">
@@ -119,6 +155,7 @@ function TaskManager({
                     type="button"
                     className="action-button"
                     onClick={onSaveEdit}
+                    disabled={isSaving || !canManageTasks}
                   >
                     Save
                   </button>
@@ -127,6 +164,7 @@ function TaskManager({
                     type="button"
                     className="action-button"
                     onClick={onCancelEdit}
+                    disabled={isSaving}
                   >
                     Cancel
                   </button>
@@ -138,6 +176,7 @@ function TaskManager({
                       type="checkbox"
                       checked={task.completed}
                       onChange={() => onToggleComplete(task.id)}
+                      disabled={isSaving || !canManageTasks}
                     />
 
                     <span className={task.completed ? "completed" : ""}>
@@ -146,14 +185,19 @@ function TaskManager({
                   </label>
 
                   <div className="task-actions">
-                    {task.dueDate && (
-                      <span className="task-due-date">Due: {task.dueDate}</span>
+                    {dueDateDisplay && (
+                      <span
+                        className={`task-due-date${dueDateDisplay.overdue ? " task-overdue" : ""}`}
+                      >
+                        {dueDateDisplay.text}
+                      </span>
                     )}
 
                     <button
                       type="button"
                       className="action-button"
                       onClick={() => onEditRequest(task)}
+                      disabled={isSaving || !canManageTasks}
                     >
                       Edit
                     </button>
@@ -162,6 +206,7 @@ function TaskManager({
                       type="button"
                       className="action-button delete-button"
                       onClick={() => onDelete(task.id)}
+                      disabled={isSaving || !canManageTasks}
                     >
                       Delete
                     </button>
@@ -169,7 +214,8 @@ function TaskManager({
                 </>
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

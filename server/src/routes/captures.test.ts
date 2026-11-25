@@ -67,6 +67,42 @@ describe("POST /api/captures/confirm", () => {
     expect(confirmFamilyCapture).toHaveBeenCalledWith(validPayload);
   });
 
+  it("accepts separate HTTP and HTTPS media URLs for multiple events", async () => {
+    vi.mocked(confirmFamilyCapture).mockResolvedValue({ id: "capture-1" });
+    const events = [
+      { ...validEvent, mediaUrl: "https://drive.google.com/file/d/one" },
+      { ...validEvent, category: "Feeding", mediaUrl: "http://photos.example/2" },
+    ];
+    const response = await app.request("/api/captures/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "A note", events }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(confirmFamilyCapture).toHaveBeenCalledWith({
+      content: "A note",
+      events,
+    });
+  });
+
+  it.each(["javascript:alert(1)", "ftp://example.com/photo", "not a url"])(
+    "rejects invalid media URLs in Quick Capture: %s",
+    async (mediaUrl) => {
+      const response = await app.request("/api/captures/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...validPayload,
+          events: [{ ...validEvent, mediaUrl }],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(confirmFamilyCapture).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects empty content", async () => {
     const response = await app.request("/api/captures/confirm", {
       method: "POST",

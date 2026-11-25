@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   processQuickCapture,
   saveQuickCapture,
+  updateQuickCaptureDraftEvent,
   type AiSuggestedEvent,
 } from "./quickCaptureApi";
 
@@ -14,6 +15,7 @@ const mockEvent: AiSuggestedEvent = {
   quantity: null,
   unit: null,
   durationMinutes: 120,
+  mediaUrl: null,
 };
 
 afterEach(() => {
@@ -135,7 +137,7 @@ describe("saveQuickCapture", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: "Baby slept",
-          events: [mockEvent],
+          events: [{ ...mockEvent, mediaUrl: null }],
         }),
       }),
     );
@@ -157,6 +159,52 @@ describe("saveQuickCapture", () => {
     await expect(saveQuickCapture("Baby slept", [mockEvent])).rejects.toThrow(
       "Unable to save your capture.",
     );
+  });
+
+  it("saves separate optional media URLs for multiple events and normalizes empty links", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ capture: { id: "capture-2" } }), {
+        status: 201,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const events = [
+      { ...mockEvent, mediaUrl: " https://drive.google.com/photo " },
+      { ...mockEvent, category: "Feeding" as const, mediaUrl: "" },
+    ];
+
+    await saveQuickCapture("Two moments", events);
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).events).toEqual([
+      { ...mockEvent, mediaUrl: "https://drive.google.com/photo" },
+      { ...mockEvent, category: "Feeding", mediaUrl: null },
+    ]);
+  });
+
+  it("rejects invalid or unsupported media URL protocols before sending", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      saveQuickCapture("Note", [{ ...mockEvent, mediaUrl: "ftp://example.com/file" }]),
+    ).rejects.toThrow("Enter a valid HTTP or HTTPS URL.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves each event's link when content or category changes", () => {
+    const drafts = [
+      { ...mockEvent, mediaUrl: "https://drive.google.com/one" },
+      { ...mockEvent, mediaUrl: "https://photos.google.com/two" },
+    ];
+    const contentEdited = updateQuickCaptureDraftEvent(drafts, 0, "content", "Updated");
+    const categoryEdited = updateQuickCaptureDraftEvent(contentEdited, 0, "category", "Health");
+
+    expect(categoryEdited[0]).toMatchObject({
+      content: "Updated",
+      category: "Health",
+      mediaUrl: "https://drive.google.com/one",
+    });
+    expect(categoryEdited[1]?.mediaUrl).toBe("https://photos.google.com/two");
   });
 
   it("uses the fallback message when the error response is malformed", async () => {

@@ -16,7 +16,13 @@ export async function askBabyOS(
     },
     body: JSON.stringify({
       question,
-      tasks,
+      tasks: tasks.map(({ id, title, dueDate, completed, createdAt }) => ({
+        id,
+        title,
+        dueDate,
+        completed,
+        createdAt,
+      })),
     }),
   });
 

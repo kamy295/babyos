@@ -1,9 +1,10 @@
 export type Task = {
-  id: number;
+  id: string;
   title: string;
   dueDate: string;
   completed: boolean;
   createdAt: string;
+  legacyId?: string;
 };
 
 export type TaskFilter = "All" | "Pending" | "Completed";

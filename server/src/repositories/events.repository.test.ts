@@ -8,15 +8,16 @@ const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   eq: vi.fn(),
   order: vi.fn(),
-  range: vi.fn(),
   maybeSingle: vi.fn(),
   single: vi.fn(),
+  rpc: vi.fn(),
   result: null as unknown,
 }));
 
 vi.mock("../lib/supabase", () => ({
   supabase: {
     from: mocks.from,
+    rpc: mocks.rpc,
   },
 }));
 
@@ -35,7 +36,6 @@ const queryBuilder = {
   insert: mocks.insert,
   eq: mocks.eq,
   order: mocks.order,
-  range: mocks.range,
   maybeSingle: mocks.maybeSingle,
   single: mocks.single,
 
@@ -55,6 +55,7 @@ const eventInput = {
   quantity: null,
   unit: null,
   durationMinutes: 120,
+  mediaUrl: null,
 };
 
 beforeEach(() => {
@@ -68,7 +69,6 @@ beforeEach(() => {
   mocks.insert.mockReturnValue(queryBuilder);
   mocks.eq.mockReturnValue(queryBuilder);
   mocks.order.mockReturnValue(queryBuilder);
-  mocks.range.mockReturnValue(queryBuilder);
   mocks.maybeSingle.mockReturnValue(queryBuilder);
   mocks.single.mockReturnValue(queryBuilder);
 
@@ -80,6 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 describe("getBabyEvents", () => {
@@ -92,6 +93,7 @@ describe("getBabyEvents", () => {
     expect(mocks.from).toHaveBeenCalledWith("baby_events");
     expect(mocks.select).toHaveBeenCalledOnce();
     expect(mocks.select.mock.calls[0]?.[0]).toContain("end_date");
+    expect(mocks.select.mock.calls[0]?.[0]).toContain("media_url");
     expect(mocks.eq).toHaveBeenNthCalledWith(1, "family_id", "test-family-id");
     expect(mocks.eq).toHaveBeenNthCalledWith(2, "baby_id", "test-baby-id");
     expect(mocks.order).toHaveBeenCalledWith("created_at", {
@@ -115,56 +117,66 @@ describe("getBabyEvents", () => {
 
     await expect(getBabyEvents()).rejects.toBe(error);
   });
+
 });
 
 describe("getBabyEventsPage", () => {
-  it.each([
-    [1, 10, 0, 9],
-    [2, 10, 10, 19],
-    [3, 5, 10, 14],
-    [5, 5, 20, 24],
-  ])(
-    "requests the expected offset range for page %i",
-    async (page, pageSize, from, to) => {
-      const data = [{ id: `page-${page}-event` }];
-      mocks.result = { data, count: 21, error: null };
-
-      await expect(getBabyEventsPage(page, pageSize, "Sleep")).resolves.toEqual(
-        { events: data, totalRecords: 21 },
-      );
-
-      expect(mocks.select).toHaveBeenCalledWith(expect.any(String), {
-        count: "exact",
-      });
-      expect(mocks.eq).toHaveBeenNthCalledWith(3, "category", "Sleep");
-      expect(mocks.order).toHaveBeenNthCalledWith(1, "event_date", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      expect(mocks.order).toHaveBeenNthCalledWith(2, "start_time", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      expect(mocks.order).toHaveBeenNthCalledWith(3, "id", {
-        ascending: false,
-      });
-      expect(mocks.range).toHaveBeenCalledWith(from, to);
-      expect(mocks.eq.mock.invocationCallOrder[2]).toBeLessThan(
-        mocks.range.mock.invocationCallOrder[0],
-      );
-    },
-  );
-
-  it("returns zero matching records for an empty page and does not filter All", async () => {
-    mocks.result = { data: [], count: 0, error: null };
-
-    await expect(getBabyEventsPage(1, 10, "All")).resolves.toEqual({
-      events: [],
-      totalRecords: 0,
+  it("calls the scoped RPC with the requested page and category", async () => {
+    const events = [{ id: "page-two-event", media_url: null }];
+    mocks.rpc.mockResolvedValue({
+      data: { events, totalRecords: 21 },
+      error: null,
     });
 
-    expect(mocks.eq).toHaveBeenCalledTimes(2);
-    expect(mocks.range).toHaveBeenCalledWith(0, 9);
+    await expect(getBabyEventsPage(2, 5, "Sleep")).resolves.toEqual({
+      events,
+      totalRecords: 21,
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith("get_baby_events_page", {
+      p_family_id: "test-family-id",
+      p_baby_id: "test-baby-id",
+      p_page: 2,
+      p_page_size: 5,
+      p_category: "Sleep",
+    });
+  });
+
+  it("passes no category for All and preserves totals for an empty requested page", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: { events: [], totalRecords: 17 },
+      error: null,
+    });
+
+    await expect(getBabyEventsPage(3, 10, "All")).resolves.toEqual({
+      events: [],
+      totalRecords: 17,
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "get_baby_events_page",
+      expect.objectContaining({
+        p_family_id: "test-family-id",
+        p_baby_id: "test-baby-id",
+        p_page: 3,
+        p_page_size: 10,
+        p_category: null,
+      }),
+    );
+  });
+
+  it("propagates RPC errors", async () => {
+    const error = new Error("Timeline RPC failed");
+    mocks.rpc.mockResolvedValue({ data: null, error });
+
+    await expect(getBabyEventsPage(1, 10)).rejects.toBe(error);
+  });
+
+  it("requires configured family and baby scope before calling the RPC", async () => {
+    vi.stubEnv("BABYOS_DEV_BABY_ID", "");
+
+    await expect(getBabyEventsPage(1, 10)).rejects.toThrow(
+      "Development family or baby ID is not configured.",
+    );
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });
 
@@ -225,6 +237,7 @@ describe("updateBabyEvent", () => {
       quantity: eventInput.quantity,
       unit: eventInput.unit,
       duration_minutes: eventInput.durationMinutes,
+      media_url: null,
     });
 
     expect(mocks.eq).toHaveBeenCalledTimes(4);
@@ -245,6 +258,14 @@ describe("updateBabyEvent", () => {
     mocks.result = { data: null, error };
 
     await expect(updateBabyEvent("event-1", eventInput)).rejects.toBe(error);
+  });
+
+  it("preserves the existing media URL when an update omits the field", async () => {
+    mocks.result = { data: { id: "event-1" }, error: null };
+
+    await updateBabyEvent("event-1", { ...eventInput, mediaUrl: undefined });
+
+    expect(mocks.update.mock.calls[0]?.[0]).not.toHaveProperty("media_url");
   });
 });
 
@@ -268,6 +289,7 @@ describe("createBabyEvent", () => {
       quantity: eventInput.quantity,
       unit: eventInput.unit,
       duration_minutes: eventInput.durationMinutes,
+      media_url: null,
     });
     expect(mocks.select.mock.calls[0]?.[0]).toContain("end_date");
 
@@ -280,4 +302,19 @@ describe("createBabyEvent", () => {
 
     await expect(createBabyEvent(eventInput)).rejects.toBe(error);
   });
+
+  it.each([null, "", undefined])(
+    "defaults a missing event date (%s) to today's Kolkata date",
+    async (eventDate) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T18:30:00.000Z"));
+      mocks.result = { data: { id: "event-1" }, error: null };
+
+      await createBabyEvent({ ...eventInput, eventDate });
+
+      expect(mocks.insert.mock.calls[0]?.[0]).toMatchObject({
+        event_date: "2026-01-02",
+      });
+    },
+  );
 });

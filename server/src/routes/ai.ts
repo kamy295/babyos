@@ -39,8 +39,8 @@ const askBabyOSInputSchema = z.object({
   tasks: z
     .array(
       z.object({
-        id: z.number(),
-        title: z.string().max(300),
+        id: z.union([z.string(), z.number()]),
+        title: z.string().max(2000),
         dueDate: z.string(),
         completed: z.boolean(),
         createdAt: z.string(),

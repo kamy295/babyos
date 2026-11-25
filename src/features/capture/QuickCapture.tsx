@@ -1,11 +1,11 @@
 import CategoryDropdown from "../../components/ui/CategoryDropdown";
 import { NOTE_CATEGORIES } from "../../types/notes";
-import type { AiSuggestedEvent } from "./quickCaptureApi";
+import type { QuickCaptureDraftEvent } from "./quickCaptureApi";
 import "./QuickCapture.css";
 
 type QuickCaptureProps = {
   noteInput: string;
-  draftEvents: AiSuggestedEvent[];
+  draftEvents: QuickCaptureDraftEvent[];
   isProcessingCapture: boolean;
   captureError: string;
   isSavingCapture: boolean;
@@ -15,7 +15,7 @@ type QuickCaptureProps = {
   onDiscardDraft: () => void;
   onUpdateDraftEvent: (
     index: number,
-    field: "content" | "category",
+    field: "content" | "category" | "mediaUrl",
     value: string,
   ) => void;
 };
@@ -83,6 +83,19 @@ function QuickCapture({
                   onUpdateDraftEvent(index, "category", value)
                 }
               />
+
+              <label className="draft-media-url">
+                Photos &amp; Videos (optional)
+                <input
+                  type="url"
+                  value={event.mediaUrl ?? ""}
+                  onChange={(e) =>
+                    onUpdateDraftEvent(index, "mediaUrl", e.target.value)
+                  }
+                  placeholder="Paste a Google Drive, Photos or other link"
+                  aria-label={`Photos & Videos link for event ${index + 1}`}
+                />
+              </label>
             </div>
           ))}
 

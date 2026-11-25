@@ -216,7 +216,7 @@ describe("POST /api/ai/ask", () => {
     });
     const tasks = [
       {
-        id: 7,
+        id: "10000000-0000-4000-8000-000000000001",
         title: "Buy diapers",
         dueDate: "2026-11-25",
         completed: false,

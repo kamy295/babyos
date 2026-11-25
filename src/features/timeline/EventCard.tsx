@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FamilyEvent } from "../../types/notes";
 import { formatDateTime } from "../../utils/date";
+import { isValidOptionalHttpUrl } from "../../utils/mediaUrl";
 
 type EventCardProps = {
   event: FamilyEvent;
@@ -39,6 +40,17 @@ function EventCard({ event, onDelete, onEdit, isDeleting }: EventCardProps) {
 
         {event.durationMinutes !== null && (
           <span> · {event.durationMinutes} minutes</span>
+        )}
+
+        {event.mediaUrl?.trim() && isValidOptionalHttpUrl(event.mediaUrl) && (
+          <a
+            className="event-media-link"
+            href={event.mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open memories
+          </a>
         )}
       </div>
 

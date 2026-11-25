@@ -83,10 +83,31 @@
   line-height: 1.6;
 }
 
+.draft-media-url {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.draft-media-url input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--input-background);
+  font: inherit;
+}
+
 .review-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 16px;
 }
 
 .review-actions .discard-button {

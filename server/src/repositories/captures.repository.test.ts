@@ -37,6 +37,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 describe("confirmFamilyCapture", () => {
@@ -121,6 +122,33 @@ describe("confirmFamilyCapture", () => {
       "confirm_family_capture",
       expect.objectContaining({
         p_events: input.events,
+      }),
+    );
+  });
+
+  it("resolves missing capture event dates in Kolkata and preserves per-event media URLs", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T18:30:00.000Z"));
+    const input = {
+      ...captureInput,
+      events: [
+        { ...captureInput.events[0]!, eventDate: null, mediaUrl: "https://drive.google.com/one" },
+        { ...captureInput.events[0]!, eventDate: undefined, mediaUrl: "https://photos.google.com/two" },
+        { ...captureInput.events[0]!, eventDate: "", mediaUrl: null },
+      ],
+    };
+    mocks.rpc.mockResolvedValue({ data: { captureId: "capture-3" }, error: null });
+
+    await confirmFamilyCapture(input);
+
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "confirm_family_capture",
+      expect.objectContaining({
+        p_events: [
+          expect.objectContaining({ eventDate: "2026-01-02", mediaUrl: "https://drive.google.com/one" }),
+          expect.objectContaining({ eventDate: "2026-01-02", mediaUrl: "https://photos.google.com/two" }),
+          expect.objectContaining({ eventDate: "2026-01-02", mediaUrl: null }),
+        ],
       }),
     );
   });

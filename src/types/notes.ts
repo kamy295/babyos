@@ -29,6 +29,7 @@ export type FamilyEvent = {
   unit: string | null;
 
   durationMinutes: number | null;
+  mediaUrl?: string | null;
 
   recordedAt: string;
   createdAt: string;

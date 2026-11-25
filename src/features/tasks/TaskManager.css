@@ -36,6 +36,29 @@
   cursor: pointer;
 }
 
+.task-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--surface-background);
+}
+
+.task-error button {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--action-color);
+  background: var(--surface-background);
+  font: inherit;
+  cursor: pointer;
+}
+
 .delete-button {
   border: none;
   background: transparent;
@@ -83,6 +106,11 @@
 .task-due-date {
   color: var(--text-soft);
   font-size: 12px;
+}
+
+.task-due-date.task-overdue {
+  color: #a94442;
+  font-weight: 500;
 }
 
 .task-actions {

@@ -20,12 +20,26 @@ import {
 import QuickCapture from "./features/capture/QuickCapture";
 import TaskManager from "./features/tasks/TaskManager";
 import { type Task, type TaskFilter } from "./types/tasks";
+import {
+  createTask as createPersistedTask,
+  deleteTask as deletePersistedTask,
+  getTasks,
+  importLegacyTaskBatch,
+  updateTask as updatePersistedTask,
+} from "./features/tasks/taskApi";
+import {
+  mergeLegacyTasks,
+  getLegacyTaskSourceId,
+  migrateLegacyTasks,
+  readLegacyTasks,
+} from "./features/tasks/taskMigration";
 import AskBabyOS from "./features/ask/AskBabyOS";
 import SleepTracker from "./features/sleep/SleepTracker";
 import {
   processQuickCapture,
   saveQuickCapture,
-  type AiSuggestedEvent,
+  updateQuickCaptureDraftEvent,
+  type QuickCaptureDraftEvent,
 } from "./features/capture/quickCaptureApi";
 import ToastContainer from "./components/notifications/ToastContainer";
 import { useNotification } from "./components/notifications/useNotification";
@@ -42,7 +56,6 @@ import {
 } from "./features/sleep/sleepUtils";
 
 const STORAGE_KEY = "babyos:family-notes";
-const TASK_STORAGE_KEY = "babyos:tasks";
 type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "babyos:theme";
@@ -60,6 +73,7 @@ type ApiEvent = {
   quantity: number | null;
   unit: string | null;
   duration_minutes: number | null;
+  media_url?: string | null;
   recorded_at: string;
   created_at: string;
 };
@@ -82,6 +96,7 @@ function mapApiEvent(event: ApiEvent): FamilyEvent {
     quantity: event.quantity,
     unit: event.unit,
     durationMinutes: event.duration_minutes,
+    mediaUrl: event.media_url ?? null,
     recordedAt: event.recorded_at,
     createdAt: event.created_at,
   };
@@ -121,31 +136,6 @@ function loadSavedNotes(): FamilyNote[] {
   }
 }
 
-function loadSavedTasks(): Task[] {
-  try {
-    const storedTasks = localStorage.getItem(TASK_STORAGE_KEY);
-
-    if (!storedTasks) return [];
-
-    const parsedTasks: unknown = JSON.parse(storedTasks);
-
-    if (!Array.isArray(parsedTasks)) return [];
-
-    return parsedTasks.filter(
-      (task): task is Task =>
-        typeof task === "object" &&
-        task !== null &&
-        typeof task.id === "number" &&
-        typeof task.title === "string" &&
-        typeof task.dueDate === "string" &&
-        typeof task.completed === "boolean" &&
-        typeof task.createdAt === "string",
-    );
-  } catch {
-    return [];
-  }
-}
-
 function formatSleepDuration(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -172,7 +162,7 @@ function App() {
   const [noteInput, setNoteInput] = useState("");
   const [draftOriginalNote, setDraftOriginalNote] = useState("");
   const [isSavingCapture, setIsSavingCapture] = useState(false);
-  const [draftEvents, setDraftEvents] = useState<AiSuggestedEvent[]>([]);
+  const [draftEvents, setDraftEvents] = useState<QuickCaptureDraftEvent[]>([]);
   const [isProcessingCapture, setIsProcessingCapture] = useState(false);
   const [captureError, setCaptureError] = useState("");
   const [savedNotes] = useState<FamilyNote[]>(loadSavedNotes);
@@ -187,11 +177,16 @@ function App() {
     refreshVersion: timelineRefreshVersion,
   } = timelineView;
 
-  const [tasks, setTasks] = useState<Task[]>(loadSavedTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [areTasksReady, setAreTasksReady] = useState(false);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const taskMutationInProgress = useRef(false);
+  const [tasksError, setTasksError] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDueDate, setTaskDueDate] = useState("");
   const [activeTaskFilter, setActiveTaskFilter] = useState<TaskFilter>("All");
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editTaskDueDate, setEditTaskDueDate] = useState("");
 
@@ -237,6 +232,49 @@ function App() {
   const todaySleepMinutes = getTodaySleepDuration(sleepSessions);
   const { notify } = useNotification();
 
+  const loadTasks = useCallback(async () => {
+    setIsLoadingTasks(true);
+    setTasksError("");
+    let serverTasks: Task[] = [];
+
+    try {
+      serverTasks = await getTasks();
+      const migration = await migrateLegacyTasks(
+        localStorage,
+        importLegacyTaskBatch,
+        getTasks,
+      );
+
+      if (migration.status === "imported") {
+        serverTasks = migration.tasks;
+      }
+
+      setTasks(serverTasks);
+      setAreTasksReady(true);
+    } catch (error) {
+      try {
+        setTasks(
+          mergeLegacyTasks(
+            serverTasks,
+            readLegacyTasks(localStorage),
+            getLegacyTaskSourceId(localStorage),
+          ),
+        );
+      } catch {
+        // Keep any successfully loaded server tasks and preserve unreadable local data.
+        setTasks(serverTasks);
+      }
+      setAreTasksReady(false);
+      setTasksError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load or migrate saved tasks.",
+      );
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  }, []);
+
   const activeSleepSession = sleepSessions.find(
     (session) => session.endTime === null,
   );
@@ -254,7 +292,7 @@ function App() {
       const events = await processQuickCapture(trimmedNote);
 
       setDraftOriginalNote(trimmedNote);
-      setDraftEvents(events);
+      setDraftEvents(events.map((event) => ({ ...event, mediaUrl: null })));
       setNoteInput("");
     } catch (error) {
       const message =
@@ -322,19 +360,11 @@ function App() {
 
   const handleUpdateDraftEvent = (
     index: number,
-    field: "content" | "category",
+    field: "content" | "category" | "mediaUrl",
     value: string,
   ) => {
     setDraftEvents((previousEvents) =>
-      previousEvents.map((event, currentIndex) => {
-        if (currentIndex !== index) return event;
-
-        if (field === "content") {
-          return { ...event, content: value };
-        }
-
-        return { ...event, category: value as NoteCategory };
-      }),
+      updateQuickCaptureDraftEvent(previousEvents, index, field, value),
     );
   };
 
@@ -423,50 +453,77 @@ function App() {
     }
   };
 
-  const handleAddTask = () => {
+  const beginTaskMutation = () => {
+    if (!areTasksReady || taskMutationInProgress.current) return false;
+    taskMutationInProgress.current = true;
+    setIsSavingTask(true);
+    setTasksError("");
+    return true;
+  };
+
+  const endTaskMutation = () => {
+    taskMutationInProgress.current = false;
+    setIsSavingTask(false);
+  };
+
+  const handleAddTask = async () => {
     const trimmedTitle = taskTitle.trim();
 
     if (!trimmedTitle) return;
+    if (!beginTaskMutation()) return;
 
-    const newTask: Task = {
-      id: Date.now(),
-      title: trimmedTitle,
-      dueDate: taskDueDate,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    setTasks((previousTasks) => [newTask, ...previousTasks]);
-    setTaskTitle("");
-    setTaskDueDate("");
-
-    notify({
-      type: "success",
-      title: "Task created successfully",
-      message: "Your new task has been added.",
-    });
+    try {
+      const createdTask = await createPersistedTask({
+        title: trimmedTitle,
+        dueDate: taskDueDate || null,
+      });
+      setTasks((previousTasks) => [createdTask, ...previousTasks]);
+      setTaskTitle("");
+      setTaskDueDate("");
+      notify({
+        type: "success",
+        title: "Task created successfully",
+        message: "Your new task has been added.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save the task.";
+      setTasksError(message);
+      notify({ type: "error", title: "Unable to save task", message });
+    } finally {
+      endTaskMutation();
+    }
   };
 
-  const handleToggleTask = (id: number) => {
+  const handleToggleTask = async (id: string) => {
     const task = tasks.find((item) => item.id === id);
 
-    if (!task) return;
+    if (!task || !beginTaskMutation()) return;
 
     const isCompleting = !task.completed;
 
-    setTasks((previousTasks) =>
-      previousTasks.map((item) =>
-        item.id === id ? { ...item, completed: isCompleting } : item,
-      ),
-    );
-
-    notify({
-      type: "success",
-      title: isCompleting ? "Task completed" : "Task reopened",
-      message: isCompleting
-        ? `"${task.title}" has been marked as complete.`
-        : `"${task.title}" has been moved back to pending.`,
-    });
+    try {
+      const updatedTask = await updatePersistedTask(id, {
+        completed: isCompleting,
+      });
+      setTasks((previousTasks) =>
+        previousTasks.map((item) => (item.id === id ? updatedTask : item)),
+      );
+      notify({
+        type: "success",
+        title: isCompleting ? "Task completed" : "Task reopened",
+        message: isCompleting
+          ? `"${task.title}" has been marked as complete.`
+          : `"${task.title}" has been moved back to pending.`,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to update the task.";
+      setTasksError(message);
+      notify({ type: "error", title: "Unable to update task", message });
+    } finally {
+      endTaskMutation();
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -475,48 +532,60 @@ function App() {
     setEditTaskDueDate(task.dueDate);
   };
 
-  const handleSaveTaskEdit = () => {
+  const handleSaveTaskEdit = async () => {
     if (!editTaskTitle.trim() || editingTaskId === null) return;
+    if (!beginTaskMutation()) return;
 
-    setTasks((previousTasks) =>
-      previousTasks.map((task) =>
-        task.id === editingTaskId
-          ? {
-              ...task,
-              title: editTaskTitle.trim(),
-              dueDate: editTaskDueDate,
-            }
-          : task,
-      ),
-    );
-
-    setEditingTaskId(null);
-    setEditTaskTitle("");
-    setEditTaskDueDate("");
-
-    notify({
-      type: "success",
-      title: "Task updated successfully",
-      message: "Your task details have been saved.",
-    });
+    try {
+      const updatedTask = await updatePersistedTask(editingTaskId, {
+        title: editTaskTitle.trim(),
+        dueDate: editTaskDueDate || null,
+      });
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === editingTaskId ? updatedTask : task,
+        ),
+      );
+      setEditingTaskId(null);
+      setEditTaskTitle("");
+      setEditTaskDueDate("");
+      notify({
+        type: "success",
+        title: "Task updated successfully",
+        message: "Your task details have been saved.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to update the task.";
+      setTasksError(message);
+      notify({ type: "error", title: "Unable to update task", message });
+    } finally {
+      endTaskMutation();
+    }
   };
 
-  const handleDeleteTask = (id: number) => {
+  const handleDeleteTask = async (id: string) => {
     const task = tasks.find((item) => item.id === id);
 
-    if (!task) return;
+    if (!task || !beginTaskMutation()) return;
 
-    setTasks((previousTasks) => previousTasks.filter((item) => item.id !== id));
-
-    if (editingTaskId === id) {
-      setEditingTaskId(null);
+    try {
+      await deletePersistedTask(id);
+      setTasks((previousTasks) => previousTasks.filter((item) => item.id !== id));
+      if (editingTaskId === id) setEditingTaskId(null);
+      notify({
+        type: "success",
+        title: "Task deleted successfully",
+        message: `"${task.title}" has been removed.`,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to delete the task.";
+      setTasksError(message);
+      notify({ type: "error", title: "Unable to delete task", message });
+    } finally {
+      endTaskMutation();
     }
-
-    notify({
-      type: "success",
-      title: "Task deleted successfully",
-      message: `"${task.title}" has been removed.`,
-    });
   };
 
   const pendingTasksCount = tasks.filter((task) => !task.completed).length;
@@ -631,12 +700,9 @@ function App() {
   }, [savedNotes]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
-    } catch (error) {
-      console.error("Failed to save tasks:", error);
-    }
-  }, [tasks]);
+    const timer = window.setTimeout(() => void loadTasks(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadTasks]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -878,6 +944,11 @@ function App() {
       <div id="tasks" className="nav-section">
         <TaskManager
           tasks={tasks}
+          isLoading={isLoadingTasks}
+          isSaving={isSavingTask}
+          canManageTasks={areTasksReady}
+          error={tasksError}
+          onRetry={loadTasks}
           taskTitle={taskTitle}
           taskDueDate={taskDueDate}
           activeFilter={activeTaskFilter}

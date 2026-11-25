@@ -1,4 +1,5 @@
 import type { NoteCategory } from "../../types/notes";
+import { normalizeOptionalHttpUrl } from "../../utils/mediaUrl";
 
 export type AiSuggestedEvent = {
   content: string;
@@ -9,7 +10,26 @@ export type AiSuggestedEvent = {
   quantity: number | null;
   unit: string | null;
   durationMinutes: number | null;
+  mediaUrl?: string | null;
 };
+
+export type QuickCaptureDraftEvent = AiSuggestedEvent & {
+  mediaUrl?: string | null;
+};
+
+export function updateQuickCaptureDraftEvent(
+  events: QuickCaptureDraftEvent[],
+  index: number,
+  field: "content" | "category" | "mediaUrl",
+  value: string,
+): QuickCaptureDraftEvent[] {
+  return events.map((event, currentIndex) => {
+    if (currentIndex !== index) return event;
+    if (field === "content") return { ...event, content: value };
+    if (field === "category") return { ...event, category: value as NoteCategory };
+    return { ...event, mediaUrl: value };
+  });
+}
 
 export async function processQuickCapture(
   text: string,
@@ -51,14 +71,19 @@ export async function processQuickCapture(
 
 export async function saveQuickCapture(
   content: string,
-  events: AiSuggestedEvent[],
+  events: QuickCaptureDraftEvent[],
 ): Promise<void> {
+  const eventsWithMediaUrls = events.map((event) => ({
+    ...event,
+    mediaUrl: normalizeOptionalHttpUrl(event.mediaUrl ?? ""),
+  }));
+
   const response = await fetch("/api/captures/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content, events }),
+    body: JSON.stringify({ content, events: eventsWithMediaUrls }),
   });
 
   if (!response.ok) {

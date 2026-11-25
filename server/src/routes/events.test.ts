@@ -141,4 +141,35 @@ describe("POST /api/events", () => {
     expect(response.status).toBe(201);
     expect(createBabyEvent).toHaveBeenCalledWith(eventInput);
   });
+
+  it("accepts an omitted event date and normalizes an empty media URL", async () => {
+    vi.mocked(createBabyEvent).mockResolvedValue({ id: "event-1" } as never);
+    const input = { ...eventInput, eventDate: "", mediaUrl: "  " };
+    const response = await app.request("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createBabyEvent).toHaveBeenCalledWith({
+      ...input,
+      eventDate: "",
+      mediaUrl: null,
+    });
+  });
+
+  it.each(["javascript:alert(1)", "ftp://example.com/photo", "not a url"])(
+    "rejects invalid media URL %s",
+    async (mediaUrl) => {
+      const response = await app.request("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...eventInput, mediaUrl }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(createBabyEvent).not.toHaveBeenCalled();
+    },
+  );
 });

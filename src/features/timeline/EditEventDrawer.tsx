@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { FamilyEvent, NoteCategory } from "../../types/notes";
 import Drawer from "../../components/ui/Drawer";
+import { normalizeOptionalHttpUrl } from "../../utils/mediaUrl";
 import "./EditEventDrawer.css";
 
 export type EventUpdates = {
@@ -13,6 +14,7 @@ export type EventUpdates = {
   quantity: number | null;
   unit: string | null;
   durationMinutes: number | null;
+  mediaUrl: string | null;
 };
 
 type EditEventDrawerProps = {
@@ -65,6 +67,7 @@ function EditEventForm({ event, isSaving, onSave }: EditEventFormProps) {
   const [durationMinutes, setDurationMinutes] = useState(
     event.durationMinutes?.toString() ?? "",
   );
+  const [mediaUrl, setMediaUrl] = useState(event.mediaUrl ?? "");
   const [formError, setFormError] = useState("");
 
   const handleStartTimeChange = (value: string) => {
@@ -88,6 +91,16 @@ function EditEventForm({ event, isSaving, onSave }: EditEventFormProps) {
 
     if (!trimmedContent) {
       setFormError("Event description is required.");
+      return;
+    }
+
+    let normalizedMediaUrl: string | null;
+    try {
+      normalizedMediaUrl = normalizeOptionalHttpUrl(mediaUrl);
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : "Enter a valid HTTP or HTTPS URL.",
+      );
       return;
     }
 
@@ -131,6 +144,7 @@ function EditEventForm({ event, isSaving, onSave }: EditEventFormProps) {
       quantity: parsedQuantity,
       unit: category === "Feeding" && unit.trim() ? unit.trim() : null,
       durationMinutes: parsedDuration,
+      mediaUrl: normalizedMediaUrl,
     });
   };
 
@@ -177,6 +191,17 @@ function EditEventForm({ event, isSaving, onSave }: EditEventFormProps) {
           type="date"
           value={eventDate}
           onChange={(event) => setEventDate(event.target.value)}
+        />
+      </label>
+
+      <label>
+        Photos &amp; Videos (optional)
+        <input
+          type="url"
+          value={mediaUrl}
+          onChange={(event) => setMediaUrl(event.target.value)}
+          placeholder="Paste a Google Drive, Photos or other link"
+          aria-label="Photos & Videos link"
         />
       </label>
 

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { confirmFamilyCapture } from "../repositories/captures.repository";
+import { optionalMediaUrlSchema } from "../schemas/mediaUrl";
 
 const captures = new Hono();
 
@@ -14,12 +15,13 @@ const eventSchema = z.object({
     "Milestone",
     "General",
   ]),
-  eventDate: z.iso.date().nullable(),
+  eventDate: z.union([z.iso.date(), z.literal(""), z.null()]).optional(),
   startTime: z.iso.time({ precision: -1 }).nullable(),
   endTime: z.iso.time({ precision: -1 }).nullable(),
   quantity: z.number().nonnegative().nullable(),
   unit: z.string().nullable(),
   durationMinutes: z.number().int().nonnegative().nullable(),
+  mediaUrl: optionalMediaUrlSchema,
 });
 
 const confirmCaptureSchema = z.object({
