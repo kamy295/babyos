@@ -250,6 +250,24 @@ describe("POST /api/ai/ask", () => {
     expect(prompt).toContain('"eventDate":null');
     expect(prompt).toContain("Tasks (JSON)");
     expect(prompt).toContain('"title":"Buy diapers"');
+    expect(prompt).toContain(
+      "Answer the parent's actual question directly in warm, natural conversational language",
+    );
+    expect(prompt).toContain(
+      "Use simple, everyday words and short, natural sentences",
+    );
+    expect(prompt).toContain(
+      "Avoid unnecessary headings, bullet points, and report-like structure",
+    );
+    expect(prompt).toContain("Do not expose database field names, record IDs, timestamps");
+    expect(prompt).toContain("I don't have the exact time recorded.");
+    expect(prompt).toContain(
+      "Never invent events, dates, times, quantities, durations, task statuses, or other details",
+    );
+    expect(prompt).toContain(
+      "Structured event fields are authoritative for recorded event details",
+    );
+    expect(prompt).toContain("recordCreatedAt and recordedAt are record timestamps");
     expect(prompt).toContain("Identify records that may be duplicates");
     expect(prompt).toContain(
       "do not count them as separate events without supporting evidence",
