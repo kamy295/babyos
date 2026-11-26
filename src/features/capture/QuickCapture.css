@@ -83,6 +83,39 @@
   line-height: 1.6;
 }
 
+.draft-time-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.draft-time-fields label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.draft-time-fields input {
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--input-background);
+  font: inherit;
+}
+
+.draft-time-display {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
 .draft-media-url {
   display: flex;
   flex-direction: column;
@@ -113,4 +146,10 @@
 .review-actions .discard-button {
   background: transparent;
   color: var(--action-color);
+}
+
+@media (max-width: 600px) {
+  .draft-time-fields {
+    grid-template-columns: 1fr;
+  }
 }

@@ -360,7 +360,7 @@ function App() {
 
   const handleUpdateDraftEvent = (
     index: number,
-    field: "content" | "category" | "mediaUrl",
+    field: "content" | "category" | "mediaUrl" | "startTime" | "endTime",
     value: string,
   ) => {
     setDraftEvents((previousEvents) =>

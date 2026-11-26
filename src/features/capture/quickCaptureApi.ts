@@ -20,13 +20,16 @@ export type QuickCaptureDraftEvent = AiSuggestedEvent & {
 export function updateQuickCaptureDraftEvent(
   events: QuickCaptureDraftEvent[],
   index: number,
-  field: "content" | "category" | "mediaUrl",
+  field: "content" | "category" | "mediaUrl" | "startTime" | "endTime",
   value: string,
 ): QuickCaptureDraftEvent[] {
   return events.map((event, currentIndex) => {
     if (currentIndex !== index) return event;
     if (field === "content") return { ...event, content: value };
     if (field === "category") return { ...event, category: value as NoteCategory };
+    if (field === "startTime" || field === "endTime") {
+      return { ...event, [field]: value || null };
+    }
     return { ...event, mediaUrl: value };
   });
 }
@@ -75,6 +78,8 @@ export async function saveQuickCapture(
 ): Promise<void> {
   const eventsWithMediaUrls = events.map((event) => ({
     ...event,
+    startTime: event.startTime || null,
+    endTime: event.endTime || null,
     mediaUrl: normalizeOptionalHttpUrl(event.mediaUrl ?? ""),
   }));
 

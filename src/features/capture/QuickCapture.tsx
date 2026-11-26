@@ -15,10 +15,21 @@ type QuickCaptureProps = {
   onDiscardDraft: () => void;
   onUpdateDraftEvent: (
     index: number,
-    field: "content" | "category" | "mediaUrl",
+    field: "content" | "category" | "mediaUrl" | "startTime" | "endTime",
     value: string,
   ) => void;
 };
+
+function formatTimeForDisplay(value: string | null): string | null {
+  const match = /^(0\d|1\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minute} ${period}`;
+}
 
 function QuickCapture({
   noteInput,
@@ -83,6 +94,42 @@ function QuickCapture({
                   onUpdateDraftEvent(index, "category", value)
                 }
               />
+
+              <div className="draft-time-fields">
+                <label>
+                  Start time
+                  {formatTimeForDisplay(event.startTime) && (
+                    <span className="draft-time-display">
+                      {formatTimeForDisplay(event.startTime)}
+                    </span>
+                  )}
+                  <input
+                    type="time"
+                    value={event.startTime ?? ""}
+                    onChange={(e) =>
+                      onUpdateDraftEvent(index, "startTime", e.target.value)
+                    }
+                    aria-label={`Start time for event ${index + 1}`}
+                  />
+                </label>
+
+                <label>
+                  End time
+                  {formatTimeForDisplay(event.endTime) && (
+                    <span className="draft-time-display">
+                      {formatTimeForDisplay(event.endTime)}
+                    </span>
+                  )}
+                  <input
+                    type="time"
+                    value={event.endTime ?? ""}
+                    onChange={(e) =>
+                      onUpdateDraftEvent(index, "endTime", e.target.value)
+                    }
+                    aria-label={`End time for event ${index + 1}`}
+                  />
+                </label>
+              </div>
 
               <label className="draft-media-url">
                 Photos &amp; Videos (optional)

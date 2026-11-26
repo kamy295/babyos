@@ -207,6 +207,48 @@ describe("saveQuickCapture", () => {
     expect(categoryEdited[1]?.mediaUrl).toBe("https://photos.google.com/two");
   });
 
+  it("updates or clears event times in the draft while preserving other events", () => {
+    const drafts = [
+      { ...mockEvent, startTime: null, endTime: null },
+      { ...mockEvent, startTime: "09:00", endTime: "10:00" },
+    ];
+    const withStart = updateQuickCaptureDraftEvent(drafts, 0, "startTime", "08:30");
+    const withEnd = updateQuickCaptureDraftEvent(withStart, 0, "endTime", "09:15");
+    const cleared = updateQuickCaptureDraftEvent(withEnd, 0, "startTime", "");
+
+    expect(cleared[0]).toMatchObject({ startTime: null, endTime: "09:15" });
+    expect(cleared[1]).toMatchObject({ startTime: "09:00", endTime: "10:00" });
+  });
+
+  it("includes edited times in the existing confirmation request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ capture: { id: "capture-3" } }), {
+        status: 201,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const withStart = updateQuickCaptureDraftEvent(
+      [mockEvent],
+      0,
+      "startTime",
+      "08:30",
+    );
+    const withEnd = updateQuickCaptureDraftEvent(
+      withStart,
+      0,
+      "endTime",
+      "09:15",
+    );
+
+    await saveQuickCapture("Breakfast", withEnd);
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.events[0]).toMatchObject({
+      startTime: "08:30",
+      endTime: "09:15",
+    });
+  });
+
   it("uses the fallback message when the error response is malformed", async () => {
     vi.stubGlobal(
       "fetch",
